@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { CalculatorPage } from '@/pages/CalculatorPage';
+import { AiAssistantPage } from '@/pages/AiAssistantPage';
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -29,7 +30,7 @@ export default function App() {
       case 'reports':
         return <PlaceholderPage title="Relatórios" />;
       case 'ai-assistant':
-        return <PlaceholderPage title="Assistente de IA" />;
+        return <AiAssistantPage />;
       default:
         return <DashboardPage onNavigate={setActivePage} />;
     }
