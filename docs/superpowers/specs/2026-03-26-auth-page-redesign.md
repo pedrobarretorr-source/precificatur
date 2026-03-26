@@ -22,7 +22,9 @@ Split-screen, two columns:
 ## Left Panel — Branding
 
 ### Photos
-Three Unsplash stock photos of Brazilian tourist destinations stacked vertically, filling the full panel height. Photos serve as background; an overlay (`bg-black/40`) ensures text legibility.
+Three Unsplash stock photos of Brazilian tourist destinations stacked vertically as `<img>` tags inside a flex column. Each image uses `flex-1 w-full object-cover min-h-0` so they share the panel height equally. The entire left panel is `relative`, and a full-panel overlay `div` with `absolute inset-0 bg-black/40` sits above the photos and below the content.
+
+Photo source: hardcoded Unsplash URLs (stable `?auto=format&fit=crop` links). The `gradient-brand` class and decorative SVG circles from the previous implementation are fully removed.
 
 ### Content (over the overlay, full height flex column)
 1. **Top:** PrecificaTur logo (`/logo-precificatur.png`), white, ~h-12
@@ -37,8 +39,10 @@ Three Unsplash stock photos of Brazilian tourist destinations stacked vertically
 ### Testimonials Carousel
 - 5 testimonial cards (placeholders — content to be replaced by the team)
 - Each card: avatar (initials or photo), name, role/company, quote text
-- Auto-rotates every 5 seconds
-- Transition effect: **fade** (opacity 0→1) between testimonials
+- Auto-rotates every 5 seconds via `setInterval` inside a `useEffect`
+- The `useEffect` must return a `clearInterval` cleanup to prevent memory leaks on unmount
+- Clicking a dot navigates to that testimonial AND resets the 5-second timer (clear + restart interval)
+- Transition effect: **fade** (opacity 0→1, CSS transition ~500ms) between testimonials
 - Manual dots navigation below the card
 - Placeholder structure:
   ```
@@ -65,26 +69,28 @@ Three Unsplash stock photos of Brazilian tourist destinations stacked vertically
   - E-mail (with Mail icon, validation)
   - Senha (with Lock icon, show/hide toggle, validation)
   - Link "Esqueci minha senha" (inline, right-aligned above field)
-- CTA button: orange, full-width, "ENTRAR →" with loading spinner
-- Divider: "ou entre com"
+- CTA button: orange, full-width, text `"ENTRAR"` + `<ArrowRight>` Lucide icon, with loading spinner
+- Divider: "ou entre com" — rendered **inside** the login tab block
 - Social buttons: Google + Facebook (side by side)
 
 ### Register Tab (`tab === 'register'`)
-- Title: "Criar nova conta"
-- Subtitle: "Experimente gratuitamente por 30 dias."
+- Title: **"Criar nova conta"** _(replaces old "Crie sua conta")_
+- Subtitle: **"Experimente gratuitamente por 30 dias."** _(replaces old "Comece a precificar seus roteiros agora")_
 - Fields (in order):
   1. Nome completo (User icon)
   2. Endereço de e-mail (Mail icon)
   3. Confirme o e-mail (Mail icon, match validation + green checkmark feedback)
   4. Crie uma senha (Lock icon, show/hide, password strength indicator)
   5. Confirme a senha (Lock icon, show/hide, match validation + green checkmark feedback)
-- CTA button: orange, full-width, "CRIAR CONTA →" with loading spinner
-- Divider: "ou cadastre com"
+- CTA button: orange, full-width, text `"CRIAR CONTA"` + `<ArrowRight>` Lucide icon, with loading spinner
+- Divider: "ou cadastre com" — rendered **inside** the register tab block
 - Social buttons: Google + Facebook (side by side)
 
 ### Footer
 Centered, small text links separated by `|`:
 `TERMOS | PRIVACIDADE | COOKIES | CONTATO`
+
+The existing "Ao criar uma conta, você concorda com nossos Termos de Uso e Política de Privacidade" consent text is **removed** and replaced entirely by this four-link footer row, always visible regardless of active tab.
 
 ---
 
@@ -106,6 +112,11 @@ All existing validation logic is preserved:
 
 New state:
 - `testimonialIndex: number` — current testimonial (0–4), auto-advances via `setInterval`
+- `showLoginPassword: boolean` — show/hide toggle for the login password field (isolated from register)
+- `showRegisterPassword: boolean` — show/hide toggle for "Crie uma senha" in register
+- `showConfirmPassword: boolean` — show/hide toggle for "Confirme a senha" in register
+
+Note: the existing shared `showPassword` state is split into three isolated states to prevent cross-tab interference.
 
 ---
 
@@ -124,3 +135,4 @@ No new files. No routing changes needed (`App.tsx` already wires `AuthPage` corr
 - Real testimonial content (placeholders only)
 - "Esqueci minha senha" functionality (button present, no action)
 - TERMOS / PRIVACIDADE / COOKIES / CONTATO page content
+- Carousel accessibility (aria-labels for dots, keyboard navigation — future iteration)
