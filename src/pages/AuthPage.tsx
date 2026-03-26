@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  Mail, Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, Check
+  Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Check
 } from 'lucide-react';
 
 interface AuthPageProps {
@@ -40,6 +40,25 @@ const TESTIMONIALS = [
   },
 ];
 
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg>
+  );
+}
+
+function FacebookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0" fill="#1877F2">
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+    </svg>
+  );
+}
+
 export function AuthPage({ onLogin }: AuthPageProps) {
 
   const [testimonialIndex, setTestimonialIndex] = useState(0);
@@ -66,8 +85,9 @@ export function AuthPage({ onLogin }: AuthPageProps) {
   };
 
   const [tab, setTab] = useState<'login' | 'register'>('login');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [_showRegisterPassword, _setShowRegisterPassword] = useState(false);
+  const [_showConfirmPassword, _setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -75,12 +95,12 @@ export function AuthPage({ onLogin }: AuthPageProps) {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
-  // Register fields
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [confirmEmail, setConfirmEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  // Register fields (used in Task 4)
+  const [_name, _setName] = useState('');
+  const [_email, _setEmail] = useState('');
+  const [_confirmEmail, _setConfirmEmail] = useState('');
+  const [_password, _setPassword] = useState('');
+  const [_confirmPassword, _setConfirmPassword] = useState('');
 
   const validateLogin = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -92,20 +112,20 @@ export function AuthPage({ onLogin }: AuthPageProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const validateRegister = (): boolean => {
+  const _validateRegister = (): boolean => {
     const newErrors: Record<string, string> = {};
-    if (!name.trim()) newErrors.name = 'Informe seu nome completo';
-    if (!email.trim()) newErrors.email = 'Informe seu e-mail';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    if (!_name.trim()) newErrors.name = 'Informe seu nome completo';
+    if (!_email.trim()) newErrors.email = 'Informe seu e-mail';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(_email))
       newErrors.email = 'E-mail inválido';
-    if (!confirmEmail.trim()) newErrors.confirmEmail = 'Confirme seu e-mail';
-    else if (email !== confirmEmail)
+    if (!_confirmEmail.trim()) newErrors.confirmEmail = 'Confirme seu e-mail';
+    else if (_email !== _confirmEmail)
       newErrors.confirmEmail = 'Os e-mails não coincidem';
-    if (!password) newErrors.password = 'Crie uma senha';
-    else if (password.length < 6)
+    if (!_password) newErrors.password = 'Crie uma senha';
+    else if (_password.length < 6)
       newErrors.password = 'Mínimo de 6 caracteres';
-    if (!confirmPassword) newErrors.confirmPassword = 'Confirme sua senha';
-    else if (password !== confirmPassword)
+    if (!_confirmPassword) newErrors.confirmPassword = 'Confirme sua senha';
+    else if (_password !== _confirmPassword)
       newErrors.confirmPassword = 'As senhas não coincidem';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -122,9 +142,9 @@ export function AuthPage({ onLogin }: AuthPageProps) {
     }, 800);
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const _handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateRegister()) return;
+    if (!_validateRegister()) return;
     setLoading(true);
     // TODO: Integrar com backend (Supabase)
     setTimeout(() => {
@@ -142,7 +162,7 @@ export function AuthPage({ onLogin }: AuthPageProps) {
     }, 800);
   };
 
-  const passwordStrength = (pwd: string): { level: number; label: string; color: string } => {
+  const _passwordStrength = (pwd: string): { level: number; label: string; color: string } => {
     if (pwd.length === 0) return { level: 0, label: '', color: '' };
     let score = 0;
     if (pwd.length >= 6) score++;
@@ -156,7 +176,9 @@ export function AuthPage({ onLogin }: AuthPageProps) {
     return { level: 4, label: 'Forte', color: 'bg-emerald-500' };
   };
 
-  const strength = passwordStrength(password);
+  // Pre-compute for Task 4 register form
+  const _strength = _passwordStrength(_password);
+  void _handleRegister; void _strength;
 
   return (
     <div className="min-h-screen bg-surface-100 flex">
@@ -260,17 +282,14 @@ export function AuthPage({ onLogin }: AuthPageProps) {
         </div>
       </div>
 
-      {/* Right panel — form */}
+      {/* Right panel */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-md">
+
           {/* Mobile logo */}
           <div className="lg:hidden flex justify-center mb-10">
             <div className="bg-brand-navy rounded-2xl px-6 py-4 shadow-lg">
-              <img
-                src="/logo-precificatur.png"
-                alt="PrecificaTur"
-                className="h-10 object-contain"
-              />
+              <img src="/logo-precificatur.png" alt="PrecificaTur" className="h-10 object-contain" />
             </div>
           </div>
 
@@ -305,11 +324,10 @@ export function AuthPage({ onLogin }: AuthPageProps) {
                 <h2 className="text-2xl font-extrabold text-surface-800 mb-1">
                   Bem-vindo de volta!
                 </h2>
-                <p className="text-sm text-surface-500">
-                  Entre na sua conta para continuar
-                </p>
+                <p className="text-sm text-surface-500">Entre na sua conta para continuar</p>
               </div>
 
+              {/* E-mail */}
               <div>
                 <label className="input-label">E-mail</label>
                 <div className="relative">
@@ -329,20 +347,18 @@ export function AuthPage({ onLogin }: AuthPageProps) {
                 )}
               </div>
 
+              {/* Senha */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-sm font-semibold text-surface-700">Senha</label>
-                  <button
-                    type="button"
-                    className="text-xs text-brand-blue hover:text-brand-blue-600 font-semibold transition-colors"
-                  >
+                  <button type="button" className="text-xs text-brand-blue hover:text-brand-blue-600 font-semibold transition-colors">
                     Esqueci minha senha
                   </button>
                 </div>
                 <div className="relative">
                   <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-400" />
                   <input
-                    type={showPassword ? 'text' : 'password'}
+                    type={showLoginPassword ? 'text' : 'password'}
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="Sua senha"
@@ -350,10 +366,10 @@ export function AuthPage({ onLogin }: AuthPageProps) {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
                     className="absolute right-3.5 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 transition-colors"
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showLoginPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
                 {errors.loginPassword && (
@@ -363,241 +379,65 @@ export function AuthPage({ onLogin }: AuthPageProps) {
                 )}
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary w-full text-base"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    Entrar
-                    <ArrowRight size={18} />
-                  </>
-                )}
+              {/* CTA */}
+              <button type="submit" disabled={loading} className="btn-primary w-full text-base">
+                {loading
+                  ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : <><span>Entrar</span><ArrowRight size={18} /></>
+                }
               </button>
+
+              {/* Divider */}
+              <div className="flex items-center gap-4">
+                <div className="flex-1 h-px bg-surface-300" />
+                <span className="text-xs text-surface-400 font-semibold">ou entre com</span>
+                <div className="flex-1 h-px bg-surface-300" />
+              </div>
+
+              {/* Social */}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleSocialLogin('google')}
+                  disabled={loading}
+                  className="flex-1 btn border border-surface-300 bg-white text-surface-700 px-4 py-3 hover:bg-surface-50 hover:border-surface-400 transition-all"
+                >
+                  <GoogleIcon />
+                  Google
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSocialLogin('facebook')}
+                  disabled={loading}
+                  className="flex-1 btn border border-surface-300 bg-white text-surface-700 px-4 py-3 hover:bg-surface-50 hover:border-surface-400 transition-all"
+                >
+                  <FacebookIcon />
+                  Facebook
+                </button>
+              </div>
             </form>
           )}
 
-          {/* Register form */}
+          {/* Register form — placeholder for Task 4 */}
           {tab === 'register' && (
-            <form onSubmit={handleRegister} className="space-y-4 animate-fade-in">
-              <div>
-                <h2 className="text-2xl font-extrabold text-surface-800 mb-1">
-                  Crie sua conta
-                </h2>
-                <p className="text-sm text-surface-500">
-                  Comece a precificar seus roteiros agora
-                </p>
-              </div>
-
-              {/* Nome */}
-              <div>
-                <label className="input-label">Nome completo</label>
-                <div className="relative">
-                  <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-400" />
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Seu nome"
-                    className={`input pl-11 ${errors.name ? 'border-red-400 focus:ring-red-200' : ''}`}
-                  />
-                </div>
-                {errors.name && (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.name}
-                  </p>
-                )}
-              </div>
-
-              {/* Email */}
-              <div>
-                <label className="input-label">E-mail</label>
-                <div className="relative">
-                  <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-400" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="seu@email.com"
-                    className={`input pl-11 ${errors.email ? 'border-red-400 focus:ring-red-200' : ''}`}
-                  />
-                </div>
-                {errors.email && (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.email}
-                  </p>
-                )}
-              </div>
-
-              {/* Confirmar email */}
-              <div>
-                <label className="input-label">Confirme o e-mail</label>
-                <div className="relative">
-                  <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-400" />
-                  <input
-                    type="email"
-                    value={confirmEmail}
-                    onChange={(e) => setConfirmEmail(e.target.value)}
-                    placeholder="Repita seu e-mail"
-                    className={`input pl-11 ${errors.confirmEmail ? 'border-red-400 focus:ring-red-200' : ''}`}
-                  />
-                </div>
-                {errors.confirmEmail && (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.confirmEmail}
-                  </p>
-                )}
-                {confirmEmail && email === confirmEmail && !errors.confirmEmail && (
-                  <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
-                    <Check size={12} /> E-mails coincidem
-                  </p>
-                )}
-              </div>
-
-              {/* Senha */}
-              <div>
-                <label className="input-label">Senha</label>
-                <div className="relative">
-                  <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Crie uma senha"
-                    className={`input pl-11 pr-11 ${errors.password ? 'border-red-400 focus:ring-red-200' : ''}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                {errors.password && (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.password}
-                  </p>
-                )}
-                {/* Password strength indicator */}
-                {password.length > 0 && (
-                  <div className="mt-2">
-                    <div className="flex gap-1 mb-1">
-                      {[1, 2, 3, 4].map((i) => (
-                        <div
-                          key={i}
-                          className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                            i <= strength.level ? strength.color : 'bg-surface-200'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-xs text-surface-500">
-                      Força da senha: <span className="font-semibold">{strength.label}</span>
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Confirmar senha */}
-              <div>
-                <label className="input-label">Confirme a senha</label>
-                <div className="relative">
-                  <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-400" />
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repita sua senha"
-                    className={`input pl-11 pr-11 ${errors.confirmPassword ? 'border-red-400 focus:ring-red-200' : ''}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 transition-colors"
-                  >
-                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                {errors.confirmPassword && (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.confirmPassword}
-                  </p>
-                )}
-                {confirmPassword && password === confirmPassword && !errors.confirmPassword && (
-                  <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
-                    <Check size={12} /> Senhas coincidem
-                  </p>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary w-full text-base"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    Criar conta
-                    <ArrowRight size={18} />
-                  </>
-                )}
-              </button>
-            </form>
+            <div className="animate-fade-in">
+              <h2 className="text-2xl font-extrabold text-surface-800 mb-1">Criar nova conta</h2>
+              <p className="text-sm text-surface-500">Experimente gratuitamente por 30 dias.</p>
+            </div>
           )}
-
-          {/* Divider */}
-          <div className="flex items-center gap-4 my-6">
-            <div className="flex-1 h-px bg-surface-300" />
-            <span className="text-xs text-surface-400 font-semibold">ou entre com</span>
-            <div className="flex-1 h-px bg-surface-300" />
-          </div>
-
-          {/* Social login */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => handleSocialLogin('google')}
-              disabled={loading}
-              className="flex-1 btn border border-surface-300 bg-white text-surface-700 px-4 py-3
-                         hover:bg-surface-50 hover:border-surface-400 transition-all"
-            >
-              <svg viewBox="0 0 24 24" className="w-5 h-5 mr-2 flex-shrink-0">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              Google
-            </button>
-            <button
-              onClick={() => handleSocialLogin('facebook')}
-              disabled={loading}
-              className="flex-1 btn border border-surface-300 bg-white text-surface-700 px-4 py-3
-                         hover:bg-surface-50 hover:border-surface-400 transition-all"
-            >
-              <svg viewBox="0 0 24 24" className="w-5 h-5 mr-2 flex-shrink-0" fill="#1877F2">
-                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-              </svg>
-              Facebook
-            </button>
-          </div>
 
           {/* Footer */}
-          <p className="text-center text-xs text-surface-400 mt-8">
-            Ao criar uma conta, você concorda com nossos{' '}
-            <button className="text-brand-blue hover:underline font-semibold">
-              Termos de Uso
-            </button>{' '}
-            e{' '}
-            <button className="text-brand-blue hover:underline font-semibold">
-              Política de Privacidade
-            </button>
-          </p>
+          <div className="flex items-center justify-center gap-3 mt-8 flex-wrap">
+            {['TERMOS', 'PRIVACIDADE', 'COOKIES', 'CONTATO'].map((link, i, arr) => (
+              <span key={link} className="flex items-center gap-3">
+                <button className="text-[11px] text-surface-400 hover:text-surface-600 font-semibold transition-colors">
+                  {link}
+                </button>
+                {i < arr.length - 1 && <span className="text-surface-300 text-xs">|</span>}
+              </span>
+            ))}
+          </div>
+
         </div>
       </div>
     </div>
