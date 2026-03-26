@@ -7,39 +7,40 @@ interface AuthPageProps {
   onLogin: () => void;
 }
 
+const TESTIMONIALS = [
+  {
+    name: 'Mariana Silva',
+    role: 'Agente de viagens',
+    initials: 'MS',
+    text: 'O PrecificaTur mudou a forma como encaramos nossa rentabilidade. Agora temos clareza total sobre cada centavo investido nos roteiros.',
+  },
+  {
+    name: 'Carlos Rocha',
+    role: 'Operador turístico',
+    initials: 'CR',
+    text: 'Antes levávamos horas para precificar um roteiro. Agora fazemos em minutos com muito mais confiança.',
+  },
+  {
+    name: 'Ana Ferreira',
+    role: 'Guia de turismo',
+    initials: 'AF',
+    text: 'A simulação de cenários me ajuda a mostrar para os clientes por que o preço é justo. Ferramenta indispensável.',
+  },
+  {
+    name: 'Pedro Costa',
+    role: 'Dono de agência',
+    initials: 'PC',
+    text: 'Finalmente consigo ver o ponto de equilíbrio de cada passeio. Minha margem aumentou 18% no primeiro mês.',
+  },
+  {
+    name: 'Lucia Mendes',
+    role: 'Consultora de turismo',
+    initials: 'LM',
+    text: 'Os relatórios detalhados por roteiro me dão argumentos sólidos nas negociações com fornecedores.',
+  },
+];
+
 export function AuthPage({ onLogin }: AuthPageProps) {
-  const TESTIMONIALS = [
-    {
-      name: 'Mariana Silva',
-      role: 'Agente de viagens',
-      initials: 'MS',
-      text: 'O PrecificaTur mudou a forma como encaramos nossa rentabilidade. Agora temos clareza total sobre cada centavo investido nos roteiros.',
-    },
-    {
-      name: 'Carlos Rocha',
-      role: 'Operador turístico',
-      initials: 'CR',
-      text: 'Antes levávamos horas para precificar um roteiro. Agora fazemos em minutos com muito mais confiança.',
-    },
-    {
-      name: 'Ana Ferreira',
-      role: 'Guia de turismo',
-      initials: 'AF',
-      text: 'A simulação de cenários me ajuda a mostrar para os clientes por que o preço é justo. Ferramenta indispensável.',
-    },
-    {
-      name: 'Pedro Costa',
-      role: 'Dono de agência',
-      initials: 'PC',
-      text: 'Finalmente consigo ver o ponto de equilíbrio de cada passeio. Minha margem aumentou 18% no primeiro mês.',
-    },
-    {
-      name: 'Lucia Mendes',
-      role: 'Consultora de turismo',
-      initials: 'LM',
-      text: 'Os relatórios detalhados por roteiro me dão argumentos sólidos nas negociações com fornecedores.',
-    },
-  ];
 
   const [testimonialIndex, setTestimonialIndex] = useState(0);
 
@@ -214,7 +215,7 @@ export function AuthPage({ onLogin }: AuthPageProps) {
           </div>
 
           {/* Testimonials */}
-          <div className="mt-8 relative">
+          <div className="mt-8 relative min-h-[120px]">
             {TESTIMONIALS.map((t, i) => (
               <div
                 key={i}
