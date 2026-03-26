@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Mail, Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, Check
 } from 'lucide-react';
@@ -8,6 +8,62 @@ interface AuthPageProps {
 }
 
 export function AuthPage({ onLogin }: AuthPageProps) {
+  const TESTIMONIALS = [
+    {
+      name: 'Mariana Silva',
+      role: 'Agente de viagens',
+      initials: 'MS',
+      text: 'O PrecificaTur mudou a forma como encaramos nossa rentabilidade. Agora temos clareza total sobre cada centavo investido nos roteiros.',
+    },
+    {
+      name: 'Carlos Rocha',
+      role: 'Operador turístico',
+      initials: 'CR',
+      text: 'Antes levávamos horas para precificar um roteiro. Agora fazemos em minutos com muito mais confiança.',
+    },
+    {
+      name: 'Ana Ferreira',
+      role: 'Guia de turismo',
+      initials: 'AF',
+      text: 'A simulação de cenários me ajuda a mostrar para os clientes por que o preço é justo. Ferramenta indispensável.',
+    },
+    {
+      name: 'Pedro Costa',
+      role: 'Dono de agência',
+      initials: 'PC',
+      text: 'Finalmente consigo ver o ponto de equilíbrio de cada passeio. Minha margem aumentou 18% no primeiro mês.',
+    },
+    {
+      name: 'Lucia Mendes',
+      role: 'Consultora de turismo',
+      initials: 'LM',
+      text: 'Os relatórios detalhados por roteiro me dão argumentos sólidos nas negociações com fornecedores.',
+    },
+  ];
+
+  const [testimonialIndex, setTestimonialIndex] = useState(0);
+
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startInterval = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      setTestimonialIndex((prev) => (prev + 1) % TESTIMONIALS.length);
+    }, 5000);
+  };
+
+  useEffect(() => {
+    startInterval();
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const goToTestimonial = (index: number) => {
+    setTestimonialIndex(index);
+    startInterval();
+  };
+
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -157,7 +213,49 @@ export function AuthPage({ onLogin }: AuthPageProps) {
             </div>
           </div>
 
-          {/* Testimonials carousel — placeholder, will be added in Task 2 */}
+          {/* Testimonials */}
+          <div className="mt-8 relative">
+            {TESTIMONIALS.map((t, i) => (
+              <div
+                key={i}
+                className="transition-opacity duration-500"
+                style={{
+                  opacity: i === testimonialIndex ? 1 : 0,
+                  position: i === testimonialIndex ? 'relative' : 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  pointerEvents: i === testimonialIndex ? 'auto' : 'none',
+                }}
+              >
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-9 h-9 rounded-full bg-brand-orange flex items-center justify-center flex-shrink-0">
+                    <span className="text-white text-xs font-bold">{t.initials}</span>
+                  </div>
+                  <div>
+                    <p className="text-white text-sm font-bold leading-tight">{t.name}</p>
+                    <p className="text-white/60 text-xs">{t.role}</p>
+                  </div>
+                </div>
+                <p className="text-white/80 text-sm leading-relaxed italic">"{t.text}"</p>
+              </div>
+            ))}
+
+            {/* Dots */}
+            <div className="flex gap-2 mt-4">
+              {TESTIMONIALS.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => goToTestimonial(i)}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    i === testimonialIndex
+                      ? 'w-6 bg-brand-orange'
+                      : 'w-1.5 bg-white/40 hover:bg-white/60'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
