@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Save, Check } from 'lucide-react';
 import { SimulationResults } from '@/components/calculator/SimulationResults';
 import {
   runSimulation,
+  findBreakEven,
   calcTotalFixedCosts,
   calcTotalVariablePercent,
   formatBRL,
@@ -88,7 +89,8 @@ export function CalculatorPage() {
   const [price, setPrice] = useState(0);
   const [marginPct, setMarginPct] = useState(0);
   const [marginPax, setMarginPax] = useState(10);
-  const [minPax, setMinPax] = useState(1);
+  const [simulationPax, setSimulationPax] = useState(0);
+  const [isExplorationMode, setIsExplorationMode] = useState(false);
   const [maxPax, setMaxPax] = useState(50);
 
   // Persistence — stable identity for this calculator session
@@ -106,15 +108,16 @@ export function CalculatorPage() {
   }, [mode, price, marginPct, marginPax, totalFixed, totalVarPct]);
 
   const simulation = useMemo(
-    () => runSimulation(fixedCosts, varCosts, effectivePrice, maxPax, 0, minPax),
-    [fixedCosts, varCosts, effectivePrice, maxPax, minPax],
+    () => isExplorationMode
+      ? runSimulation(fixedCosts, varCosts, effectivePrice, maxPax, 0, simulationPax || 1)
+      : runSimulation(fixedCosts, varCosts, effectivePrice, simulationPax || 1, 0, simulationPax || 1),
+    [fixedCosts, varCosts, effectivePrice, maxPax, simulationPax, isExplorationMode],
   );
 
-  const keyScenarios = useMemo(() => {
-    const start = Math.max(1, minPax);
-    const end = Math.min(maxPax, 100);
-    return Array.from({ length: Math.max(0, end - start + 1) }, (_, i) => start + i);
-  }, [maxPax, minPax]);
+  const breakEvenForDisplay = useMemo(
+    () => findBreakEven(fixedCosts, varCosts, effectivePrice),
+    [fixedCosts, varCosts, effectivePrice],
+  );
 
   // ── Persistence ──
   function buildCurrentRoute() {
@@ -155,8 +158,8 @@ export function CalculatorPage() {
   function canAdvance() {
     if (step === 0) return routeName.trim().length > 0;
     if (step === 3) {
-      if (mode === 'price') return price > 0;
-      return marginPct > 0 && marginPax > 0;
+      if (mode === 'price') return price > 0 && simulationPax > 0;
+      return marginPct > 0 && marginPax > 0 && simulationPax > 0;
     }
     return true;
   }
@@ -611,67 +614,54 @@ export function CalculatorPage() {
               </div>
             )}
 
-            {/* Quick stats preview */}
-            {effectivePrice > 0 && simulation.breakEvenPax && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="text-center p-3 rounded-xl bg-emerald-50 border border-emerald-200">
-                  <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide">Equilíbrio</p>
-                  <p className="text-xl font-extrabold text-emerald-600">{simulation.breakEvenPax} pax</p>
-                  <p className="text-[10px] text-surface-500">mínimo sem prejuízo</p>
-                </div>
-                <div className="text-center p-3 rounded-xl bg-brand-navy-50 border border-brand-navy-100">
-                  <p className="text-[10px] font-bold text-brand-navy uppercase tracking-wide">Custos fixos</p>
-                  <p className="text-lg font-extrabold text-brand-navy leading-tight mt-0.5">
-                    {formatBRL(totalFixed)}
-                  </p>
-                  <p className="text-[10px] text-surface-500">do roteiro</p>
-                </div>
-                {simulation.rows.length >= 10 && (
-                  <div className="text-center p-3 rounded-xl bg-brand-orange-50 border border-brand-orange-100">
-                    <p className="text-[10px] font-bold text-brand-orange uppercase tracking-wide">Margem 10 pax</p>
-                    <p className="text-xl font-extrabold text-brand-orange">
-                      {formatPercent(simulation.rows[9].margin)}
-                    </p>
-                    <p className="text-[10px] text-surface-500">{formatBRL(simulation.rows[9].finalResult)}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
             <div>
-              <label className="input-label">Faixa de passageiros para simular</label>
-              <div className="grid grid-cols-2 gap-3 max-w-xs">
-                <div>
-                  <label className="input-label font-normal text-surface-400">De</label>
-                  <input
-                    className="input"
-                    type="number"
-                    min={1}
-                    max={maxPax - 1}
-                    value={minPax}
-                    onChange={e => {
-                      const v = Math.max(1, parseInt(e.target.value) || 1);
-                      setMinPax(v);
-                      if (v >= maxPax) setMaxPax(v + 1);
-                    }}
-                  />
+              <label className="input-label">
+                {isExplorationMode ? 'Faixa de passageiros' : 'Quantidade de passageiros'}
+              </label>
+              {isExplorationMode ? (
+                <div className="grid grid-cols-2 gap-3 max-w-xs">
+                  <div>
+                    <label className="input-label font-normal text-surface-400">De</label>
+                    <input
+                      className="input"
+                      type="number"
+                      min={1}
+                      max={maxPax - 1}
+                      value={simulationPax || ''}
+                      onChange={e => {
+                        const v = Math.max(1, parseInt(e.target.value) || 0);
+                        setSimulationPax(v);
+                        if (v >= maxPax) setMaxPax(v + 1);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="input-label font-normal text-surface-400">Até (máx. 100)</label>
+                    <input
+                      className="input"
+                      type="number"
+                      min={(simulationPax || 1) + 1}
+                      max={100}
+                      value={maxPax || ''}
+                      onChange={e => {
+                        const v = Math.min(100, parseInt(e.target.value) || 0);
+                        setMaxPax(v);
+                        if (v <= simulationPax) setSimulationPax(Math.max(1, v - 1));
+                      }}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="input-label font-normal text-surface-400">Até (máx. 100)</label>
-                  <input
-                    className="input"
-                    type="number"
-                    min={minPax + 1}
-                    max={100}
-                    value={maxPax}
-                    onChange={e => {
-                      const v = Math.min(100, parseInt(e.target.value) || 50);
-                      setMaxPax(v);
-                      if (v <= minPax) setMinPax(Math.max(1, v - 1));
-                    }}
-                  />
-                </div>
-              </div>
+              ) : (
+                <input
+                  className="input max-w-[160px]"
+                  type="number"
+                  min={1}
+                  max={100}
+                  placeholder="Ex: 25"
+                  value={simulationPax || ''}
+                  onChange={e => setSimulationPax(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                />
+              )}
             </div>
           </div>
         )}
@@ -686,8 +676,16 @@ export function CalculatorPage() {
             </div>
             <SimulationResults
               simulation={simulation}
-              keyScenarios={keyScenarios}
               estimatedPrice={effectivePrice}
+              isExplorationMode={isExplorationMode}
+              breakEvenPax={breakEvenForDisplay}
+              onCompareScenarios={() => {
+                setIsExplorationMode(true);
+                const safePax = Math.min(simulationPax, 99);
+                setSimulationPax(safePax);
+                setMaxPax(Math.min(100, safePax + 20));
+                setStep(3);
+              }}
             />
           </div>
         )}
