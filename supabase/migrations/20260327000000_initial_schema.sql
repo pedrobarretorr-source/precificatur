@@ -33,7 +33,7 @@ CREATE TABLE public.organizations (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name       text NOT NULL,
   slug       text UNIQUE NOT NULL CHECK (slug <> ''),
-  plan       text NOT NULL DEFAULT 'free',
+  plan       text NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'pro', 'enterprise')),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -63,7 +63,7 @@ CREATE TABLE public.routes (
                      'ecologico', 'religioso', 'historico', 'personalizado')),
   currency         text NOT NULL DEFAULT 'BRL'
                         CHECK (currency IN ('BRL', 'USD', 'EUR', 'VES')),
-  exchange_rate    numeric(10,4) NOT NULL DEFAULT 1.0,
+  exchange_rate    numeric(10,4) NOT NULL DEFAULT 1.0 CHECK (exchange_rate > 0),
   duration_days    int NOT NULL DEFAULT 1 CHECK (duration_days >= 1),
   fixed_costs      jsonb NOT NULL DEFAULT '[]',
   variable_costs   jsonb NOT NULL DEFAULT '[]',
@@ -87,8 +87,8 @@ ALTER TABLE public.routes ENABLE ROW LEVEL SECURITY;
 -- Function A: Slug generation
 -- Must be first — called by handle_new_user.
 CREATE OR REPLACE FUNCTION public.generate_org_slug(name text)
-RETURNS text LANGUAGE plpgsql
-SET search_path = public, pg_catalog AS $$
+RETURNS text LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, extensions, pg_catalog AS $$
 DECLARE
   base_slug text;
   final_slug text;
@@ -119,7 +119,11 @@ DECLARE
   user_name text;
   org_slug  text;
 BEGIN
-  user_name := COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1));
+  user_name := COALESCE(
+    NULLIF(NEW.raw_user_meta_data->>'full_name', ''),
+    NULLIF(split_part(NEW.email, '@', 1), ''),
+    'usuario'
+  );
   org_slug  := public.generate_org_slug('Organizacao de ' || user_name);
 
   INSERT INTO public.profiles (id, full_name)
@@ -206,6 +210,22 @@ CREATE TRIGGER enforce_org_has_owner
   BEFORE DELETE OR UPDATE OF role ON public.organization_members
   FOR EACH ROW EXECUTE FUNCTION public.prevent_ownerless_org();
 
+-- Prevent organization_id changes on organization_members rows
+CREATE OR REPLACE FUNCTION public.prevent_member_org_change()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_catalog AS $$
+BEGIN
+  IF NEW.organization_id != OLD.organization_id THEN
+    RAISE EXCEPTION 'Cannot change organization_id of an existing member';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER enforce_member_org_immutable
+  BEFORE UPDATE OF organization_id ON public.organization_members
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_member_org_change();
+
 -- updated_at maintenance
 CREATE TRIGGER set_profiles_updated_at
   BEFORE UPDATE ON public.profiles
@@ -248,6 +268,13 @@ CREATE POLICY "members_read_org" ON public.organizations
 
 CREATE POLICY "owner_update_org" ON public.organizations
   FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.organization_members
+      WHERE organization_id = organizations.id
+        AND user_id = auth.uid()
+        AND role = 'owner'
+    )
+  ) WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.organization_members
       WHERE organization_id = organizations.id
