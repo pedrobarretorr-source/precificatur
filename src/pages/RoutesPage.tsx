@@ -1,5 +1,5 @@
-import { Map, Calendar, User, Copy, Calculator, TrendingUp, TrendingDown } from 'lucide-react';
-import { MOCK_ROUTES } from '@/data/mock-routes';
+import { Map, Calendar, User, Copy, Calculator, TrendingUp, TrendingDown, Loader2, Trash2 } from 'lucide-react';
+import { useRoutes } from '@/hooks/useRoutes';
 import { ROUTE_TYPE_LABELS, COST_CATEGORY_LABELS, type Route } from '@/types';
 import {
   runSimulation,
@@ -20,6 +20,8 @@ interface RoutesPageProps {
 }
 
 export function RoutesPage({ onNavigate }: RoutesPageProps) {
+  const { routes, loading, saving, error, deleteRoute } = useRoutes();
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -35,13 +37,30 @@ export function RoutesPage({ onNavigate }: RoutesPageProps) {
             Roteiros salvos. Abra na calculadora para simular ou duplicar.
           </p>
         </div>
+        {saving && (
+          <span className="text-xs text-surface-400 flex items-center gap-1">
+            <Loader2 size={12} className="animate-spin" /> Salvando...
+          </span>
+        )}
       </div>
+
+      {error && <p className="text-red-500 text-sm">{error}</p>}
 
       {/* Route cards */}
       <div className="space-y-5">
-        {MOCK_ROUTES.map(route => (
-          <RouteCard key={route.id} route={route} onNavigate={onNavigate} />
-        ))}
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-surface-400">
+            <Loader2 size={24} className="animate-spin mr-2" /> Carregando roteiros...
+          </div>
+        ) : routes.length === 0 ? (
+          <div className="text-center py-12 text-surface-400 text-sm">
+            Nenhum roteiro salvo ainda. Use a calculadora para criar e salvar um roteiro.
+          </div>
+        ) : (
+          routes.map(route => (
+            <RouteCard key={route.id} route={route} onNavigate={onNavigate} onDelete={deleteRoute} />
+          ))
+        )}
       </div>
 
       {/* Reuse explanation */}
@@ -55,9 +74,6 @@ export function RoutesPage({ onNavigate }: RoutesPageProps) {
           <li>Salve como um novo roteiro ou substitua o atual.</li>
           <li><strong>"Duplicar"</strong> cria uma cópia sem alterar o original — ideal para variações do mesmo passeio.</li>
         </ol>
-        <p className="text-[10px] text-brand-navy-400 mt-3">
-          Integração com banco de dados via Supabase — em desenvolvimento.
-        </p>
       </div>
     </div>
   );
@@ -65,7 +81,11 @@ export function RoutesPage({ onNavigate }: RoutesPageProps) {
 
 // ── Route Card ────────────────────────────────────────────────────────────────
 
-function RouteCard({ route, onNavigate }: { route: Route; onNavigate: (page: string) => void }) {
+function RouteCard({ route, onNavigate, onDelete }: {
+  route: Route;
+  onNavigate: (page: string) => void;
+  onDelete: (id: string) => void;
+}) {
   const totalFixed = calcTotalFixedCosts(route.fixedCosts);
   const totalVarPct = calcTotalVariablePercent(route.variableCosts);
   const simulation = runSimulation(route.fixedCosts, route.variableCosts, route.estimatedPrice, 30);
@@ -112,10 +132,16 @@ function RouteCard({ route, onNavigate }: { route: Route; onNavigate: (page: str
             <Calculator size={13} /> Abrir na Calculadora
           </button>
           <button
-            onClick={() => alert('Duplicar roteiro — integração pendente')}
+            onClick={() => alert('Duplicar roteiro — em breve')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 border-surface-300 text-surface-600 text-xs font-bold hover:border-surface-400 transition-all"
           >
             <Copy size={13} /> Duplicar
+          </button>
+          <button
+            onClick={() => onDelete(route.id)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 border-red-200 text-red-500 text-xs font-bold hover:border-red-300 transition-all"
+          >
+            <Trash2 size={13} /> Excluir
           </button>
         </div>
       </div>

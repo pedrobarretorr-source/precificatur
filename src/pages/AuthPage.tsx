@@ -2,18 +2,17 @@ import { useState } from 'react';
 import {
   Mail, Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, Check
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
-interface AuthPageProps {
-  onLogin: () => void;
-}
-
-export function AuthPage({ onLogin }: AuthPageProps) {
+export function AuthPage() {
+  const { signIn, signUp, signInWithOAuth } = useAuth();
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [registerSuccess, setRegisterSuccess] = useState(false);
 
   // Login fields
   const [loginEmail, setLoginEmail] = useState('');
@@ -55,35 +54,46 @@ export function AuthPage({ onLogin }: AuthPageProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateLogin()) return;
     setLoading(true);
-    // TODO: Integrar com backend (Supabase)
-    setTimeout(() => {
-      setLoading(false);
-      onLogin();
-    }, 800);
+    const { error } = await signIn(loginEmail, loginPassword);
+    setLoading(false);
+    if (error) {
+      const msg = error.message ?? '';
+      if (msg.includes('Invalid login credentials')) {
+        setErrors({ loginEmail: 'E-mail ou senha incorretos' });
+      } else if (msg.includes('Email not confirmed')) {
+        setErrors({ loginEmail: 'Confirme seu e-mail antes de entrar' });
+      } else {
+        setErrors({ loginEmail: 'Erro ao autenticar. Tente novamente.' });
+      }
+    }
+    // On success: AuthContext updates user → App re-renders automatically
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateRegister()) return;
     setLoading(true);
-    // TODO: Integrar com backend (Supabase)
-    setTimeout(() => {
-      setLoading(false);
-      onLogin();
-    }, 800);
+    const { error } = await signUp(email, password, name);
+    setLoading(false);
+    if (error) {
+      const msg = error.message ?? '';
+      if (msg.includes('User already registered')) {
+        setErrors({ email: 'Este e-mail já está cadastrado' });
+      } else {
+        setErrors({ email: 'Erro ao criar conta. Tente novamente.' });
+      }
+    } else {
+      setRegisterSuccess(true);
+    }
   };
 
-  const handleSocialLogin = (_provider: 'google' | 'facebook') => {
-    setLoading(true);
-    // TODO: Integrar OAuth com Google/Facebook via Supabase
-    setTimeout(() => {
-      setLoading(false);
-      onLogin();
-    }, 800);
+  const handleSocialLogin = async (provider: 'google' | 'facebook') => {
+    await signInWithOAuth(provider);
+    // Browser navigates away — no state update needed
   };
 
   const passwordStrength = (pwd: string): { level: number; label: string; color: string } => {
@@ -441,6 +451,13 @@ export function AuthPage({ onLogin }: AuthPageProps) {
                   </>
                 )}
               </button>
+
+              {registerSuccess && (
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-700">
+                  <Check size={16} className="mt-0.5 flex-shrink-0 text-emerald-500" />
+                  <span>Verifique seu e-mail para confirmar o cadastro.</span>
+                </div>
+              )}
             </form>
           )}
 

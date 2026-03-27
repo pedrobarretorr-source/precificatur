@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { CalculatorPage } from '@/pages/CalculatorPage';
+import { RoutesPage } from '@/pages/RoutesPage';
 import { AiAssistantPage } from '@/pages/AiAssistantPage';
+import { AuthPage } from '@/pages/AuthPage';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -16,8 +19,21 @@ function PlaceholderPage({ title }: { title: string }) {
   );
 }
 
-export default function App() {
+function AppContent() {
+  const { user, loading } = useAuth();
   const [activePage, setActivePage] = useState('dashboard');
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface-100">
+        <div className="text-surface-400 text-sm">Carregando...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthPage />;
+  }
 
   const renderPage = () => {
     switch (activePage) {
@@ -26,7 +42,7 @@ export default function App() {
       case 'calculator':
         return <CalculatorPage />;
       case 'routes':
-        return <PlaceholderPage title="Meus roteiros" />;
+        return <RoutesPage onNavigate={setActivePage} />;
       case 'reports':
         return <PlaceholderPage title="Relatórios" />;
       case 'ai-assistant':
@@ -43,5 +59,13 @@ export default function App() {
         {renderPage()}
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
