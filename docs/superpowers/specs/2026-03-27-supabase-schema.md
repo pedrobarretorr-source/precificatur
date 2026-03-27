@@ -132,7 +132,8 @@ ALTER TABLE public.routes ENABLE ROW LEVEL SECURITY;
 { "id": "uuid", "label": "Refeição", "type": "fixed", "amount": 50, "isPercentage": false }
 
 // days item (multi-day routes)
-// days[*].variableCosts items follow the same schema as top-level variable_costs items above
+// days[*].variableCosts items follow the same schema as top-level variable_costs items above.
+// "variableCosts" key is required; use [] for days with no variable costs (never omit or null).
 { "id": "uuid", "name": "Dia 1", "activities": "...", "variableCosts": [
   { "id": "uuid", "label": "Refeição", "type": "fixed", "amount": 50, "isPercentage": false }
 ]}
@@ -213,10 +214,19 @@ CREATE POLICY "owner_insert_member" ON public.organization_members
     )
   );
 
--- UPDATE: only the org owner can change a member's role (e.g., promote collaborator to owner).
--- Role changes are permitted; updated_at is not tracked (see Out of Scope).
+-- UPDATE (role column only): only the org owner can change a member's role.
+-- Restricting to UPDATE (role) prevents owners from reassigning user_id or other fields.
+-- Self-demotion (owner → collaborator) is blocked solely by the prevent_ownerless_org trigger.
+-- RLS does not block self-demotion on its own — the USING clause checks the old row (still owner).
 CREATE POLICY "owner_update_member_role" ON public.organization_members
   FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.organization_members om2
+      WHERE om2.organization_id = organization_members.organization_id
+        AND om2.user_id = auth.uid()
+        AND om2.role = 'owner'
+    )
+  ) WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.organization_members om2
       WHERE om2.organization_id = organization_members.organization_id
@@ -267,17 +277,22 @@ CREATE POLICY "org_routes_delete" ON public.routes
   );
 ```
 
+**Collaborator permissions:** Collaborators have the same route access as owners (SELECT, INSERT, UPDATE, DELETE). Role-based route restrictions are not implemented in this schema — both roles have full org route access. This is intentional for MVP.
+
+**`enforce_org_has_owner` trigger scope:** This trigger fires on `DELETE` and `UPDATE OF role` only. It does NOT fire on `INSERT` — the initial owner insert during `handle_new_user` is not affected.
+
 **Security notes:**
 - `service_role` key bypasses RLS — never expose it in the frontend
 - Frontend uses `anon key` — always filtered by RLS
 - SSL is enabled by default in Supabase (non-configurable)
 - No table has public access without authentication
+- Organizations INSERT is blocked by RLS default-deny (no INSERT policy defined — this is intentional, not an omission)
 
 ---
 
 ## Section 5: Triggers & Functions
 
-All functions use `SECURITY DEFINER` so they can write to tables during user bootstrap without RLS interference.
+Functions that access tables across RLS boundaries use `SECURITY DEFINER`. The `set_updated_at` helper does not — it only modifies `NEW` in-memory and does not query any table, so `SECURITY DEFINER` is not needed and is intentionally omitted.
 
 **Required migration execution order:**
 
@@ -294,8 +309,12 @@ All functions use `SECURITY DEFINER` so they can write to tables during user boo
 ```sql
 -- Function A: Slug generation helper (MUST be defined before handle_new_user)
 -- NOTE: Requires the unaccent extension — see migration preamble.
+-- Supabase installs extensions into the 'extensions' schema by default in newer projects.
+-- If unaccent is not in 'public', add 'extensions' to search_path:
+--   SET search_path = public, extensions, pg_catalog
 CREATE OR REPLACE FUNCTION public.generate_org_slug(name text)
-RETURNS text LANGUAGE plpgsql AS $$
+RETURNS text LANGUAGE plpgsql
+SET search_path = public, pg_catalog AS $$
 DECLARE
   base_slug text;
   final_slug text;
@@ -327,8 +346,13 @@ $$;
 -- The EXCEPTION block logs errors from within handle_new_user's body. Errors thrown
 -- by called functions (e.g., generate_org_slug) before reaching this body propagate
 -- as undecorated errors — visible in Supabase dashboard logs under "postgres" level.
+-- IMPORTANT: The three inserts must remain in this order: profiles → organizations →
+-- organization_members. Re-ordering would not break FK constraints but would cause
+-- check_org_member_limit to count against a non-zero org if orgs were inserted last.
+-- Upserts (ON CONFLICT DO UPDATE) are not a supported path for organization_members.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_catalog AS $$
 DECLARE
   org_id uuid;
   user_name text;
@@ -361,7 +385,8 @@ CREATE TRIGGER on_auth_user_created
 
 -- Function C: Member limit enforcement (SECURITY DEFINER ensures full count regardless of caller's RLS context)
 CREATE OR REPLACE FUNCTION public.check_org_member_limit()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_catalog AS $$
 BEGIN
   IF (
     SELECT COUNT(*) FROM public.organization_members
@@ -378,8 +403,11 @@ CREATE TRIGGER enforce_org_member_limit
   FOR EACH ROW EXECUTE FUNCTION public.check_org_member_limit();
 
 -- Function D: Prevent removing the last owner (no ownerless orgs)
+-- Handles both DELETE and UPDATE OF role.
+-- Must return OLD on DELETE path, NEW on UPDATE path (PostgreSQL requirement).
 CREATE OR REPLACE FUNCTION public.prevent_ownerless_org()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_catalog AS $$
 BEGIN
   IF OLD.role = 'owner' THEN
     IF NOT EXISTS (
@@ -390,6 +418,10 @@ BEGIN
     ) THEN
       RAISE EXCEPTION 'Cannot remove the last owner of an organization';
     END IF;
+  END IF;
+  -- Return NEW for UPDATE, OLD for DELETE
+  IF TG_OP = 'UPDATE' THEN
+    RETURN NEW;
   END IF;
   RETURN OLD;
 END;
@@ -476,4 +508,5 @@ No application code changes in this spec. Supabase integration (auth calls, rout
 - `organization_members` mutation audit (`updated_at` not tracked — role changes have no timestamp)
 - Automated remediation for partial `handle_new_user()` trigger failures (requires manual `service_role` fix)
 - Maximum slug length enforcement (slugs are unbounded `text`; application should truncate long names before passing to `generate_org_slug` if URL length is a concern)
+- `generate_org_slug` collision loop iteration limit (no guard against long-running loops in high-collision scenarios; acceptable for MVP scale)
 - Simulation parameter consistency constraints (`last_pax_min/max/step/margin` are individually nullable; partial state is accepted; the UI restore layer must handle null checks)
