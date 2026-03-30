@@ -5,7 +5,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { CalculatorPage } from '@/pages/CalculatorPage';
 import { RoutesPage } from '@/pages/RoutesPage';
 import { AiAssistantPage } from '@/pages/AiAssistantPage';
-import { AuthPage } from '@/pages/AuthPage';
+import { AccessCodePage } from '@/pages/AccessCodePage';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 function PlaceholderPage({ title }: { title: string }) {
@@ -21,7 +21,7 @@ function PlaceholderPage({ title }: { title: string }) {
 }
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const [activePage, setActivePage] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -33,10 +33,9 @@ function AppContent() {
     );
   }
 
-  // AUTH BYPASS — remover para produção
-  // if (!user) {
-  //   return <AuthPage />;
-  // }
+  if (!user) {
+    return <AccessCodePage />;
+  }
 
   const renderPage = () => {
     switch (activePage) {
@@ -50,6 +49,13 @@ function AppContent() {
         return <PlaceholderPage title="Relatórios" />;
       case 'ai-assistant':
         return <AiAssistantPage />;
+      case 'admin':
+        // Return DashboardPage directly for non-admins — do NOT call setActivePage here
+        // (state updates during render cause React warnings)
+        if (!profile?.is_admin) {
+          return <DashboardPage onNavigate={setActivePage} />;
+        }
+        return <PlaceholderPage title="Admin — em breve" />;
       default:
         return <DashboardPage onNavigate={setActivePage} />;
     }
