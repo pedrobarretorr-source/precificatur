@@ -10,7 +10,7 @@ export function VariableCostsForm({ costs, onUpdate }: VariableCostsFormProps) {
 
   return (
     <div className="card">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
         <h3 className="text-lg font-bold text-brand-navy">Custos variáveis</h3>
         <span className="text-sm font-semibold text-surface-500">
           Total: <span className="text-brand-navy">{totalPercent.toFixed(1)}%</span> do preço
@@ -23,11 +23,11 @@ export function VariableCostsForm({ costs, onUpdate }: VariableCostsFormProps) {
 
       <div className="space-y-3">
         {costs.map(cost => (
-          <div key={cost.id} className="flex items-center gap-4">
-            <label className="flex-1 text-sm font-medium text-surface-700">
+          <div key={cost.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <label className="text-sm font-medium text-surface-700">
               {cost.label}
             </label>
-            <div className="flex items-center gap-2 w-48">
+            <div className="flex items-center gap-2 w-full sm:w-48">
               <input
                 type="range"
                 min="0"

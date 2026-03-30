@@ -86,7 +86,7 @@ export function FixedCostsForm({ costs, totalFixed, onAdd, onRemove, onUpdate }:
             </div>
             <input
               type="number"
-              className="w-28 text-right text-sm font-bold text-brand-navy bg-white
+              className="w-20 sm:w-28 text-right text-sm font-bold text-brand-navy bg-white
                          border border-surface-300 rounded-lg px-2 py-1.5
                          focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
               value={cost.value || ''}
@@ -94,8 +94,8 @@ export function FixedCostsForm({ costs, totalFixed, onAdd, onRemove, onUpdate }:
             />
             <button
               onClick={() => onRemove(cost.id)}
-              className="p-1.5 rounded-lg text-surface-400 hover:text-red-500
-                         hover:bg-red-50 transition-all"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg
+                         text-surface-400 hover:text-red-500 hover:bg-red-50 transition-all"
             >
               <Trash2 size={16} />
             </button>
@@ -104,8 +104,8 @@ export function FixedCostsForm({ costs, totalFixed, onAdd, onRemove, onUpdate }:
       </div>
 
       {/* Add new cost */}
-      <div className="flex items-end gap-2 pt-3 border-t border-surface-200">
-        <div className="flex-1">
+      <div className="flex flex-wrap items-end gap-2 pt-3 border-t border-surface-200">
+        <div className="w-full sm:flex-1">
           <label className="input-label">Descrição</label>
           <input
             className="input text-sm"
@@ -115,7 +115,7 @@ export function FixedCostsForm({ costs, totalFixed, onAdd, onRemove, onUpdate }:
             onKeyDown={handleKeyDown}
           />
         </div>
-        <div className="w-36">
+        <div className="w-full sm:w-36">
           <label className="input-label">Categoria</label>
           <select
             className="input text-sm"
@@ -127,7 +127,7 @@ export function FixedCostsForm({ costs, totalFixed, onAdd, onRemove, onUpdate }:
             ))}
           </select>
         </div>
-        <div className="w-28">
+        <div className="flex-1 sm:w-28 sm:flex-none">
           <label className="input-label">Valor (R$)</label>
           <input
             type="number"

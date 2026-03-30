@@ -221,7 +221,7 @@ export function CalculatorPage() {
                 {i < step ? <Check size={14} /> : i + 1}
               </div>
               <span className={cn(
-                'text-[10px] font-bold mt-1.5 text-center leading-tight',
+                'hidden sm:block text-[10px] font-bold mt-1.5 text-center leading-tight',
                 i === step && 'text-brand-navy',
                 i < step  && 'text-emerald-600',
                 i > step  && 'text-surface-400',
@@ -619,7 +619,7 @@ export function CalculatorPage() {
                 {isExplorationMode ? 'Faixa de passageiros' : 'Quantidade de passageiros'}
               </label>
               {isExplorationMode ? (
-                <div className="grid grid-cols-2 gap-3 max-w-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xs">
                   <div>
                     <label className="input-label font-normal text-surface-400">De</label>
                     <input
@@ -653,7 +653,7 @@ export function CalculatorPage() {
                 </div>
               ) : (
                 <input
-                  className="input max-w-[160px]"
+                  className="input w-full sm:max-w-[160px]"
                   type="number"
                   min={1}
                   max={100}

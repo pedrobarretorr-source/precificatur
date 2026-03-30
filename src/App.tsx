@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Menu } from 'lucide-react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { CalculatorPage } from '@/pages/CalculatorPage';
@@ -22,6 +23,7 @@ function PlaceholderPage({ title }: { title: string }) {
 function AppContent() {
   const { user, loading } = useAuth();
   const [activePage, setActivePage] = useState('dashboard');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   if (loading) {
     return (
@@ -31,9 +33,10 @@ function AppContent() {
     );
   }
 
-  if (!user) {
-    return <AuthPage />;
-  }
+  // AUTH BYPASS — remover para produção
+  // if (!user) {
+  //   return <AuthPage />;
+  // }
 
   const renderPage = () => {
     switch (activePage) {
@@ -54,8 +57,26 @@ function AppContent() {
 
   return (
     <div className="flex min-h-screen bg-surface-100">
-      <Sidebar activePage={activePage} onNavigate={setActivePage} />
-      <main className="flex-1 p-6 lg:p-8 max-w-6xl">
+      <Sidebar
+        activePage={activePage}
+        onNavigate={setActivePage}
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
+      />
+
+      {/* Mobile header */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40 h-14 gradient-brand flex items-center justify-between px-4">
+        <button
+          onClick={() => setMobileMenuOpen(true)}
+          className="p-2 -ml-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          <Menu size={24} />
+        </button>
+        <img src="/logo-precificatur.png" alt="PrecificaTur" className="h-7 object-contain" />
+        <div className="w-8" />
+      </header>
+
+      <main className="flex-1 pt-[72px] md:pt-0 px-3 py-4 sm:px-6 sm:py-6 lg:p-8 max-w-6xl">
         {renderPage()}
       </main>
     </div>

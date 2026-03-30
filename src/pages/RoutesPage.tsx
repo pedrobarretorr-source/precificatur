@@ -127,21 +127,21 @@ function RouteCard({ route, onNavigate, onDelete }: {
         <div className="flex gap-2 flex-shrink-0">
           <button
             onClick={() => onNavigate('calculator')}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-orange text-white text-xs font-bold hover:bg-brand-orange-500 transition-all"
+            className="flex items-center gap-1.5 p-2.5 sm:px-3 sm:py-2 rounded-xl bg-brand-orange text-white text-xs font-bold hover:bg-brand-orange-500 transition-all"
           >
-            <Calculator size={13} /> Abrir na Calculadora
+            <Calculator size={16} className="sm:w-[13px] sm:h-[13px]" /> <span className="hidden sm:inline">Abrir na Calculadora</span>
           </button>
           <button
             onClick={() => alert('Duplicar roteiro — em breve')}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 border-surface-300 text-surface-600 text-xs font-bold hover:border-surface-400 transition-all"
+            className="flex items-center gap-1.5 p-2.5 sm:px-3 sm:py-2 rounded-xl border-2 border-surface-300 text-surface-600 text-xs font-bold hover:border-surface-400 transition-all"
           >
-            <Copy size={13} /> Duplicar
+            <Copy size={16} className="sm:w-[13px] sm:h-[13px]" /> <span className="hidden sm:inline">Duplicar</span>
           </button>
           <button
             onClick={() => onDelete(route.id)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 border-red-200 text-red-500 text-xs font-bold hover:border-red-300 transition-all"
+            className="flex items-center gap-1.5 p-2.5 sm:px-3 sm:py-2 rounded-xl border-2 border-red-200 text-red-500 text-xs font-bold hover:border-red-300 transition-all"
           >
-            <Trash2 size={13} /> Excluir
+            <Trash2 size={16} className="sm:w-[13px] sm:h-[13px]" /> <span className="hidden sm:inline">Excluir</span>
           </button>
         </div>
       </div>

@@ -8,9 +8,9 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Welcome header */}
-      <div className="relative overflow-hidden rounded-3xl gradient-brand p-8 text-white">
+      <div className="relative overflow-hidden rounded-3xl gradient-brand p-5 sm:p-8 text-white">
         <div className="relative z-10">
-          <h1 className="text-3xl font-extrabold mb-2">
+          <h1 className="text-2xl sm:text-3xl font-extrabold mb-2">
             Bem-vindo ao Precifica<span className="text-brand-orange-300">Tur</span>
           </h1>
           <p className="text-white/70 max-w-lg text-sm leading-relaxed">
