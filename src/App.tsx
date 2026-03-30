@@ -6,6 +6,7 @@ import { CalculatorPage } from '@/pages/CalculatorPage';
 import { RoutesPage } from '@/pages/RoutesPage';
 import { AiAssistantPage } from '@/pages/AiAssistantPage';
 import { AccessCodePage } from '@/pages/AccessCodePage';
+import { AdminPage } from '@/pages/AdminPage';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 function PlaceholderPage({ title }: { title: string }) {
@@ -55,7 +56,7 @@ function AppContent() {
         if (!profile?.is_admin) {
           return <DashboardPage onNavigate={setActivePage} />;
         }
-        return <PlaceholderPage title="Admin — em breve" />;
+        return <AdminPage />;
       default:
         return <DashboardPage onNavigate={setActivePage} />;
     }
