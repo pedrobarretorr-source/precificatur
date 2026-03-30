@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Calculator, LayoutDashboard, Map, FileText,
-  ChevronLeft, ChevronRight, Bot, X
+  ChevronLeft, ChevronRight, Bot, X, Shield
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SidebarProps {
   activePage: string;
@@ -13,25 +14,31 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'calculator', label: 'Calculadora', icon: Calculator },
-  { id: 'routes', label: 'Meus roteiros', icon: Map },
-  { id: 'reports', label: 'Relatórios', icon: FileText },
+  { id: 'dashboard',    label: 'Dashboard',       icon: LayoutDashboard },
+  { id: 'calculator',   label: 'Calculadora',      icon: Calculator },
+  { id: 'routes',       label: 'Meus roteiros',    icon: Map },
+  { id: 'reports',      label: 'Relatórios',       icon: FileText },
   { id: 'ai-assistant', label: 'Assistente de IA', icon: Bot },
 ];
+
+const ADMIN_ITEM = { id: 'admin', label: 'Admin', icon: Shield };
 
 function NavItems({
   activePage,
   onNavigate,
   showLabels,
+  isAdmin,
 }: {
   activePage: string;
   onNavigate: (page: string) => void;
   showLabels: boolean;
+  isAdmin: boolean;
 }) {
+  const items = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
+
   return (
     <>
-      {NAV_ITEMS.map(item => {
+      {items.map(item => {
         const Icon = item.icon;
         const isActive = activePage === item.id;
         return (
@@ -57,6 +64,8 @@ function NavItems({
 
 export function Sidebar({ activePage, onNavigate, mobileOpen = false, onCloseMobile }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const { profile } = useAuth();
+  const isAdmin = profile?.is_admin === true;
 
   // Lock body scroll when mobile drawer is open
   useEffect(() => {
@@ -113,7 +122,7 @@ export function Sidebar({ activePage, onNavigate, mobileOpen = false, onCloseMob
 
           {/* Navigation */}
           <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-            <NavItems activePage={activePage} onNavigate={handleNavigate} showLabels />
+            <NavItems activePage={activePage} onNavigate={handleNavigate} showLabels isAdmin={isAdmin} />
           </nav>
         </aside>
       </div>
@@ -144,7 +153,7 @@ export function Sidebar({ activePage, onNavigate, mobileOpen = false, onCloseMob
 
         {/* Navigation */}
         <nav className="flex-1 py-4 px-3 space-y-1">
-          <NavItems activePage={activePage} onNavigate={onNavigate} showLabels={!collapsed} />
+          <NavItems activePage={activePage} onNavigate={onNavigate} showLabels={!collapsed} isAdmin={isAdmin} />
         </nav>
 
         {/* Collapse toggle */}
