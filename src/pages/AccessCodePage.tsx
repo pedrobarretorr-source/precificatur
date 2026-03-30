@@ -48,9 +48,13 @@ export function AccessCodePage() {
       return;
     }
 
-    if (result.status === 'used' && result.email) {
-      // Returning user — sign in directly
-      await handleSignIn(result.email);
+    if (result.status === 'used') {
+      if (result.email) {
+        // Returning user — sign in directly
+        await handleSignIn(result.email);
+      } else {
+        setError('Código já utilizado. Entre em contato com o administrador.');
+      }
       return;
     }
 
