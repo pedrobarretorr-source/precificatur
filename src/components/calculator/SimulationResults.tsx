@@ -381,49 +381,6 @@ export function SimulationResults({
     );
   }
 
-  /* ── Exploration Mode ────────────────────────────────────────────────── */
-  if (isExplorationMode) {
-    return (
-      <div className="space-y-3">
-        {rows.map(row => {
-          const isBreakEvenCard = row.pax === breakEvenPax;
-          const isProfitable = row.finalResult >= 0;
-          return (
-            <div
-              key={row.pax}
-              className={cn(
-                'rounded-2xl p-5 ring-1 space-y-4',
-                isBreakEvenCard ? 'bg-emerald-50 ring-emerald-200' : isProfitable ? 'bg-white ring-surface-200' : 'bg-red-50 ring-red-200'
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span className={cn('text-xl font-extrabold', isBreakEvenCard ? 'text-emerald-700' : isProfitable ? 'text-brand-navy' : 'text-red-600')}>
-                  {row.pax} pessoas
-                </span>
-                {isBreakEvenCard && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
-                    <Target size={10} /> Mínimo para lucrar
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <MetricCard label="Custo total" value={formatBRL(row.totalCost)} />
-                <MetricCard label="Total arrecadado" value={formatBRL(row.revenue)} />
-                <MetricCard label={row.finalResult >= 0 ? 'Lucro' : 'Prejuízo'} value={formatBRL(Math.abs(row.finalResult))} positive={isProfitable} />
-                <MetricCard label="% de lucro" value={formatPercent(row.margin)} positive={isProfitable} />
-              </div>
-            </div>
-          );
-        })}
-        {breakEvenPax === null && (
-          <p className="text-[11px] text-surface-500 px-1 pt-1">
-            Com os custos e preço atuais, não foi possível encontrar o número mínimo de pessoas.
-          </p>
-        )}
-      </div>
-    );
-  }
-
   /* ── Primary row: simulationPax in exploration mode, first row otherwise ── */
   const row = isExplorationMode
     ? (simulation.rows.find(r => r.pax === simulationPax) ?? rows[0])
@@ -510,37 +467,41 @@ export function SimulationResults({
       {/* ── Expandable detail panel ── */}
       <div className={cn(
         'overflow-hidden transition-all duration-300',
-        detailOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+        detailOpen ? 'max-h-[4000px] opacity-100' : 'max-h-0 opacity-0'
       )}>
-        <div className="space-y-6 pt-1">
-          {/* Section 1 */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-extrabold text-surface-800 flex items-center gap-2">
-              <Target size={16} className="text-brand-orange" />
-              Quantas pessoas você precisa?
-            </h4>
-            <PaxProgressBar breakEvenPax={breakEvenPax} simulatedPax={row.pax} />
-          </div>
+        <div className="space-y-8 pt-2">
 
-          <div className="h-px bg-surface-200" />
+          {/* Section 1 */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-surface-200">
+              <Target size={16} className="text-brand-orange flex-shrink-0" />
+              <h4 className="text-sm font-extrabold text-surface-800">Quantas pessoas você precisa?</h4>
+            </div>
+            <PaxProgressBar breakEvenPax={breakEvenPax} simulatedPax={row.pax} />
+          </section>
 
           {/* Section 2 */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-extrabold text-surface-800 flex items-center gap-2">
-              <DollarSign size={16} className="text-brand-orange" />
-              Para onde vai cada real do seu preço?
-            </h4>
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-surface-200">
+              <DollarSign size={16} className="text-brand-orange flex-shrink-0" />
+              <h4 className="text-sm font-extrabold text-surface-800">Para onde vai cada real do seu preço?</h4>
+            </div>
             <PriceDistBar row={row} totalFixed={totalFixed} estimatedPrice={estimatedPrice} />
-          </div>
+          </section>
 
-          <div className="h-px bg-surface-200" />
-
-          {/* Section 3 */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-extrabold text-surface-800 flex items-center gap-2">
-              <Users size={16} className="text-brand-orange" />
-              O que muda com mais ou menos pessoas?
-            </h4>
+          {/* Section 3 — Comparação de cenários */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-surface-200">
+              <div className="flex items-center gap-2">
+                <Users size={16} className="text-brand-orange flex-shrink-0" />
+                <h4 className="text-sm font-extrabold text-surface-800">O que muda com mais ou menos pessoas?</h4>
+              </div>
+              {isExplorationMode && (
+                <span className="text-[10px] font-bold bg-brand-orange-50 text-brand-orange border border-brand-orange-200 rounded-full px-2 py-0.5 whitespace-nowrap">
+                  1 a {scenarioPaxList[scenarioPaxList.length - 1]} pax
+                </span>
+              )}
+            </div>
             <ScenariosTable
               paxList={scenarioPaxList}
               simulatedPax={row.pax}
@@ -549,23 +510,24 @@ export function SimulationResults({
               simulation={simulation}
               estimatedPrice={estimatedPrice}
             />
-          </div>
-
-          <div className="h-px bg-surface-200" />
+          </section>
 
           {/* Section 4 */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-extrabold text-surface-800 flex items-center gap-2">
-              {isProfitable ? <TrendingUp size={16} className="text-brand-orange" /> : <TrendingDown size={16} className="text-red-500" />}
-              O que isso significa para você?
-            </h4>
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-surface-200">
+              {isProfitable
+                ? <TrendingUp size={16} className="text-brand-orange flex-shrink-0" />
+                : <TrendingDown size={16} className="text-red-500 flex-shrink-0" />}
+              <h4 className="text-sm font-extrabold text-surface-800">O que isso significa para você?</h4>
+            </div>
             <InsightsList
               row={row}
               totalFixed={totalFixed}
               estimatedPrice={estimatedPrice}
               breakEvenPax={breakEvenPax}
             />
-          </div>
+          </section>
+
         </div>
       </div>
     </div>
