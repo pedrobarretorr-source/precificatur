@@ -839,6 +839,7 @@ export function CalculatorPage({ initialRoute }: CalculatorPageProps) {
               estimatedPrice={effectivePrice}
               isExplorationMode={isExplorationMode}
               breakEvenPax={breakEvenForDisplay}
+              simulationPax={simulationPax}
             />
           </div>
         )}
