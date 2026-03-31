@@ -31,6 +31,10 @@ function toDbRow(
       contact: route.contact ?? '',
       notes: route.notes ?? '',
       isMultiDay: route.isMultiDay ?? false,
+      estimatedPrice: route.estimatedPrice ?? 0,
+      simulationPax: route.simulationPax ?? 0,
+      isExplorationMode: route.isExplorationMode ?? false,
+      maxPax: route.maxPax ?? 30,
     },
   };
 }
@@ -53,7 +57,10 @@ function fromDbRow(row: DbRow): Route {
     contact: (meta.contact as string) || '',
     notes: (meta.notes as string) || '',
     isMultiDay: (meta.isMultiDay as boolean) || false,
-    estimatedPrice: 0, // recomputed by pricing engine; never persisted
+    estimatedPrice: (meta.estimatedPrice as number) || 0,
+    simulationPax: (meta.simulationPax as number) || 0,
+    isExplorationMode: (meta.isExplorationMode as boolean) ?? false,
+    maxPax: (meta.maxPax as number) ?? 30,
   };
 }
 

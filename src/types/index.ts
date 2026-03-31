@@ -28,18 +28,22 @@ export const COST_CATEGORY_LABELS: Record<CostCategory, string> = {
   outro: 'Outro',
 };
 
-// ── Variable costs (% over price) ──
+// ── Variable costs (% over price OR flat BRL) ──
 export interface VariableCost {
   id: string;
   label: string;
-  percentage: number; // 0-100
+  emoji?: string;       // optional — presets and defaults have emoji; manual items do not
+  type: 'percentage' | 'brl';
+  percentage: number;   // used when type === 'percentage'
+  brlValue?: number;    // used when type === 'brl'
+  perPax?: boolean;     // true = R$ × pax | false = R$ ÷ pax (rateio)
 }
 
 export const DEFAULT_VARIABLE_COSTS: VariableCost[] = [
-  { id: 'admin', label: 'Administrativo', percentage: 10 },
-  { id: 'comissao', label: 'Comissão', percentage: 10 },
-  { id: 'encargos', label: 'Encargos', percentage: 12.5 },
-  { id: 'taxas', label: 'Taxas / Cartão', percentage: 4 },
+  { id: 'admin',    label: 'Administrativo', emoji: '📊', type: 'percentage', percentage: 10 },
+  { id: 'comissao', label: 'Comissão',       emoji: '🤝', type: 'percentage', percentage: 10 },
+  { id: 'encargos', label: 'Encargos',       emoji: '📋', type: 'percentage', percentage: 12.5 },
+  { id: 'taxas',    label: 'Taxas / Cartão', emoji: '💳', type: 'percentage', percentage: 4 },
 ];
 
 // ── Currency ──
@@ -83,6 +87,9 @@ export interface Route {
   variableCosts: VariableCost[];
   // Pricing
   estimatedPrice: number;
+  simulationPax: number;
+  isExplorationMode: boolean;
+  maxPax: number;
   currency: Currency;
   // Multi-day
   days: RouteDay[];
