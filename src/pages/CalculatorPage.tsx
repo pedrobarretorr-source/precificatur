@@ -17,12 +17,15 @@ import {
   type VariableCost,
 } from '@/types';
 import { generateId, cn } from '@/lib/utils';
-import { useRoutes } from '@/hooks/useRoutes';
 import type { RouteType, Currency, Route } from '@/types';
 import { PRESET_FIXED_COSTS, PRESET_VARIABLE_COSTS } from '@/data/preset-costs';
 
 interface CalculatorPageProps {
   initialRoute?: Route;
+  routes: Route[];
+  saveRoute: (route: Partial<Route> & { id: string }) => Promise<string | null>;
+  saving: boolean;
+  onNavigate: (page: string, route?: Route) => void;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -65,7 +68,7 @@ function calcPriceFromMargin(totalFixed: number, totalVarPct: number, marginPct:
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function CalculatorPage({ initialRoute }: CalculatorPageProps) {
+export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavigate }: CalculatorPageProps) {
   // Wizard step
   const [step, setStep] = useState(0);
 
@@ -104,8 +107,8 @@ export function CalculatorPage({ initialRoute }: CalculatorPageProps) {
   // Persistence — use existing id if editing, new id if creating
   const [routeId] = useState<string>(() => initialRoute?.id ?? crypto.randomUUID());
   const [routeCreatedAt] = useState<string>(() => initialRoute?.createdAt ?? new Date().toISOString());
-  const { saveRoute, saving, routes } = useRoutes();
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // ── Derived ──
   const totalFixed = useMemo(() => calcTotalFixedCosts(fixedCosts), [fixedCosts]);
@@ -154,9 +157,17 @@ export function CalculatorPage({ initialRoute }: CalculatorPageProps) {
   }
 
   async function handleSave() {
-    await saveRoute(buildCurrentRoute());
+    setSaveError(null);
+    const err = await saveRoute(buildCurrentRoute());
+    if (err) {
+      setSaveError(err);
+      return;
+    }
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => {
+      setSaved(false);
+      onNavigate('routes');
+    }, 1200);
   }
 
   // ── Validation ──
@@ -858,13 +869,16 @@ export function CalculatorPage({ initialRoute }: CalculatorPageProps) {
             Próximo <ChevronRight size={16} />
           </button>
         ) : (
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="btn btn-secondary flex items-center gap-2 text-sm disabled:opacity-60"
-          >
-            {saving ? 'Salvando...' : saved ? <><Check size={16} /> Salvo!</> : <><Save size={16} /> Salvar roteiro</>}
-          </button>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="btn btn-secondary flex items-center gap-2 text-sm disabled:opacity-60"
+            >
+              {saving ? 'Salvando...' : saved ? <><Check size={16} /> Salvo!</> : <><Save size={16} /> Salvar roteiro</>}
+            </button>
+            {saveError && <p className="text-xs text-red-500">{saveError}</p>}
+          </div>
         )}
       </div>
     </div>

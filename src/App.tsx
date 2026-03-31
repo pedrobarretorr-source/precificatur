@@ -2,29 +2,18 @@ import { useState, lazy, Suspense } from 'react';
 import { Menu } from 'lucide-react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { useRoutes } from '@/hooks/useRoutes';
 import type { Route } from '@/types';
 
 const DashboardPage  = lazy(() => import('@/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const CalculatorPage = lazy(() => import('@/pages/CalculatorPage').then(m => ({ default: m.CalculatorPage })));
 const RoutesPage     = lazy(() => import('@/pages/RoutesPage').then(m => ({ default: m.RoutesPage })));
-const AiAssistantPage = lazy(() => import('@/pages/AiAssistantPage').then(m => ({ default: m.AiAssistantPage })));
 const LoginPage      = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const AdminPage      = lazy(() => import('@/pages/AdminPage').then(m => ({ default: m.AdminPage })));
 
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="flex items-center justify-center h-96">
-      <div className="text-center">
-        <div className="text-5xl mb-4">🚧</div>
-        <h2 className="text-xl font-bold text-surface-700 mb-2">{title}</h2>
-        <p className="text-sm text-surface-400">Módulo em desenvolvimento — Fase 2</p>
-      </div>
-    </div>
-  );
-}
-
 function AppContent() {
   const { user, profile, loading } = useAuth();
+  const { routes, loading: routesLoading, saving, error: routesError, saveRoute, deleteRoute } = useRoutes();
   const [activePage, setActivePage] = useState('dashboard');
   const [calculatorRoute, setCalculatorRoute] = useState<Route | undefined>(undefined);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -55,24 +44,23 @@ function AppContent() {
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard':
-        return <DashboardPage onNavigate={navigateTo} />;
+        return <DashboardPage onNavigate={navigateTo} routes={routes} loading={routesLoading} />;
       case 'calculator':
-        return <CalculatorPage key={calculatorRoute?.id ?? 'new'} initialRoute={calculatorRoute} />;
+        return <CalculatorPage key={calculatorRoute?.id ?? 'new'} initialRoute={calculatorRoute} routes={routes} saveRoute={saveRoute} saving={saving} onNavigate={navigateTo} />;
       case 'routes':
-        return <RoutesPage onNavigate={navigateTo} />;
+        return <RoutesPage onNavigate={navigateTo} routes={routes} loading={routesLoading} saving={saving} error={routesError} deleteRoute={deleteRoute} saveRoute={saveRoute} />;
       case 'reports':
-        return <PlaceholderPage title="Relatórios" />;
       case 'ai-assistant':
-        return <AiAssistantPage />;
+        return <DashboardPage onNavigate={navigateTo} routes={routes} loading={routesLoading} />;
       case 'admin':
         // Return DashboardPage directly for non-admins — do NOT call setActivePage here
         // (state updates during render cause React warnings)
         if (!profile?.is_admin) {
-          return <DashboardPage onNavigate={setActivePage} />;
+          return <DashboardPage onNavigate={setActivePage} routes={routes} loading={routesLoading} />;
         }
         return <AdminPage />;
       default:
-        return <DashboardPage onNavigate={setActivePage} />;
+        return <DashboardPage onNavigate={setActivePage} routes={routes} loading={routesLoading} />;
     }
   };
 

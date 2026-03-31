@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Calculator, LayoutDashboard, Map, FileText,
-  ChevronLeft, ChevronRight, Bot, X, Shield
+  ChevronLeft, ChevronRight, Bot, X, Shield, Lock
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -12,6 +12,8 @@ interface SidebarProps {
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
 }
+
+const LOCKED_IDS = new Set(['reports', 'ai-assistant']);
 
 const NAV_ITEMS = [
   { id: 'dashboard',    label: 'Dashboard',       icon: LayoutDashboard },
@@ -41,20 +43,32 @@ function NavItems({
       {items.map(item => {
         const Icon = item.icon;
         const isActive = activePage === item.id;
+        const isLocked = LOCKED_IDS.has(item.id);
         return (
           <button
             key={item.id}
-            onClick={() => onNavigate(item.id)}
+            onClick={() => !isLocked && onNavigate(item.id)}
+            disabled={isLocked}
             className={cn(
               'w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold',
               'transition-all duration-200',
-              isActive
-                ? 'bg-white/15 text-white shadow-lg shadow-black/10'
-                : 'text-white/70 hover:bg-white/8 hover:text-white'
+              isLocked
+                ? 'text-white/30 cursor-not-allowed'
+                : isActive
+                  ? 'bg-white/15 text-white shadow-lg shadow-black/10'
+                  : 'text-white/70 hover:bg-white/8 hover:text-white'
             )}
           >
             <Icon size={20} className="flex-shrink-0" />
-            {showLabels && <span className="animate-fade-in">{item.label}</span>}
+            {showLabels && (
+              <span className="animate-fade-in flex-1 text-left">{item.label}</span>
+            )}
+            {isLocked && showLabels && (
+              <Lock size={14} className="flex-shrink-0 text-white/25" />
+            )}
+            {isLocked && !showLabels && (
+              <Lock size={10} className="absolute -bottom-0.5 -right-0.5 text-white/25" />
+            )}
           </button>
         );
       })}

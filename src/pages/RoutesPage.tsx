@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Map, Calendar, User, Copy, Calculator, TrendingUp, TrendingDown, Loader2, Trash2, Check } from 'lucide-react';
-import { useRoutes } from '@/hooks/useRoutes';
 import { ROUTE_TYPE_LABELS, COST_CATEGORY_LABELS, type Route } from '@/types';
 import {
   runSimulation,
@@ -18,10 +17,15 @@ const CATEGORY_EMOJI: Record<string, string> = {
 
 interface RoutesPageProps {
   onNavigate: (page: string, route?: Route) => void;
+  routes: Route[];
+  loading: boolean;
+  saving: boolean;
+  error: string | null;
+  deleteRoute: (id: string) => Promise<void>;
+  saveRoute: (route: Partial<Route> & { id: string }) => Promise<string | null>;
 }
 
-export function RoutesPage({ onNavigate }: RoutesPageProps) {
-  const { routes, loading, saving, error, deleteRoute, saveRoute } = useRoutes();
+export function RoutesPage({ onNavigate, routes, loading, saving, error, deleteRoute, saveRoute }: RoutesPageProps) {
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -86,7 +90,7 @@ function RouteCard({ route, onNavigate, onDelete, onDuplicate }: {
   route: Route;
   onNavigate: (page: string, route?: Route) => void;
   onDelete: (id: string) => void;
-  onDuplicate: (route: Partial<Route> & { id: string }) => Promise<void>;
+  onDuplicate: (route: Partial<Route> & { id: string }) => Promise<string | null>;
 }) {
   const [duplicating, setDuplicating] = useState(false);
   const [duplicated, setDuplicated] = useState(false);

@@ -98,8 +98,14 @@ export function useRoutes() {
         .eq('user_id', user!.id)
         .single();
 
+      console.log('[useRoutes] init result:', { memberData, memberError, userId: user!.id });
+
       if (memberError || !memberData?.organization_id) {
-        setError('Organização não encontrada. Contate o suporte.');
+        const detail = memberError
+          ? `código ${memberError.code}: ${memberError.message}`
+          : 'nenhuma organização vinculada ao usuário';
+        console.error('[useRoutes] init falhou:', detail);
+        setError(`Organização não encontrada (${detail}). Rode o SQL de backfill e recarregue.`);
         setLoading(false);
         return;
       }
@@ -112,9 +118,14 @@ export function useRoutes() {
   }, [user, loadRoutes]);
 
   const saveRoute = useCallback(
-    async (route: Partial<Route> & { id: string }) => {
+    async (route: Partial<Route> & { id: string }): Promise<string | null> => {
       const orgId = orgIdRef.current;
-      if (!orgId || !user) return;
+      if (!orgId || !user) {
+        const msg = 'Organização não encontrada. Execute o SQL de configuração no Supabase e recarregue a página.';
+        console.error('[useRoutes] saveRoute: orgId ou user ausente', { orgId, userId: user?.id });
+        setError(msg);
+        return msg;
+      }
 
       setSaving(true);
       const { data, error: upsertError } = await supabase
@@ -124,8 +135,14 @@ export function useRoutes() {
         .single();
 
       if (upsertError) {
-        setError('Erro ao salvar roteiro.');
-      } else if (data) {
+        const msg = `Erro ao salvar: ${upsertError.message}`;
+        console.error('[useRoutes] saveRoute: erro no upsert', upsertError);
+        setError(msg);
+        setSaving(false);
+        return msg;
+      }
+
+      if (data) {
         const saved = fromDbRow(data as DbRow);
         setRoutes((prev) => {
           const idx = prev.findIndex((r) => r.id === saved.id);
@@ -138,6 +155,7 @@ export function useRoutes() {
         });
       }
       setSaving(false);
+      return null;
     },
     [user],
   );
@@ -159,5 +177,5 @@ export function useRoutes() {
     [loadRoutes],
   );
 
-  return { routes, loading, saving, error, saveRoute, deleteRoute };
+  return { routes, loading, saving, error, saveRoute, deleteRoute } as const;
 }
