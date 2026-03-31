@@ -232,60 +232,76 @@ function ScenariosTable({
   estimatedPrice: number;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-surface-200">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-surface-50 border-b border-surface-200">
-            <th className="text-left px-3 py-2.5 text-[11px] font-bold text-surface-500 uppercase tracking-wide">Pessoas</th>
-            <th className="text-right px-3 py-2.5 text-[11px] font-bold text-surface-500 uppercase tracking-wide">Total arrecadado</th>
-            <th className="text-right px-3 py-2.5 text-[11px] font-bold text-surface-500 uppercase tracking-wide">Lucro / Prejuízo</th>
-            <th className="text-right px-3 py-2.5 text-[11px] font-bold text-surface-500 uppercase tracking-wide">% de lucro</th>
-          </tr>
-        </thead>
-        <tbody>
-          {paxList.map(pax => {
-            const row = calcRowForPax(pax, totalFixed, simulation, estimatedPrice);
-            const isBreakEven = pax === breakEvenPax;
-            const isSimulated = pax === simulatedPax;
-            const isProfit = row.finalResult >= 0;
+    <div className="rounded-xl border border-surface-200 overflow-hidden">
+      {/* Scrollable body — max ~8 rows visible */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 z-10">
+            <tr className="bg-surface-50 border-b border-surface-200">
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-surface-500 uppercase tracking-wide">Pessoas</th>
+              <th className="text-right px-3 py-2.5 text-[11px] font-bold text-surface-500 uppercase tracking-wide">Total arrecadado</th>
+              <th className="text-right px-3 py-2.5 text-[11px] font-bold text-surface-500 uppercase tracking-wide">Lucro / Prejuízo</th>
+              <th className="text-right px-3 py-2.5 text-[11px] font-bold text-surface-500 uppercase tracking-wide">% de lucro</th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+      <div className="overflow-y-auto overflow-x-auto max-h-[320px]">
+        <table className="w-full text-sm">
+          <tbody>
+            {paxList.map(pax => {
+              const row = calcRowForPax(pax, totalFixed, simulation, estimatedPrice);
+              const isBreakEven = pax === breakEvenPax;
+              const isSimulated = pax === simulatedPax;
+              const isProfit = row.finalResult >= 0;
 
-            return (
-              <tr
-                key={pax}
-                className={cn(
-                  'border-b border-surface-100 last:border-0',
-                  isBreakEven ? 'bg-emerald-50' : isSimulated ? 'bg-brand-orange-50' : 'bg-white'
-                )}
-              >
-                <td className="px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-surface-800">{pax}</span>
-                    {isBreakEven && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 whitespace-nowrap">
-                        <Target size={9} /> Mín. p/ lucrar
-                      </span>
-                    )}
-                    {isSimulated && !isBreakEven && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-orange whitespace-nowrap">
-                        👤 Sua simulação
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-3 py-2.5 text-right font-semibold text-surface-700 tabular-nums">
-                  {formatBRL(row.revenue)}
-                </td>
-                <td className={cn('px-3 py-2.5 text-right font-bold tabular-nums', isProfit ? 'text-emerald-600' : 'text-red-500')}>
-                  {row.finalResult >= 0 ? '+' : ''}{formatBRL(row.finalResult)}
-                </td>
-                <td className={cn('px-3 py-2.5 text-right font-bold tabular-nums', isProfit ? 'text-emerald-600' : 'text-red-500')}>
-                  {formatPercent(row.margin)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+              return (
+                <tr
+                  key={pax}
+                  className={cn(
+                    'border-b border-surface-100 last:border-0',
+                    isBreakEven ? 'bg-emerald-50' : isSimulated ? 'bg-brand-orange-50' : 'bg-white'
+                  )}
+                >
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      {/* Pulsing dot for break-even */}
+                      {isBreakEven ? (
+                        <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                        </span>
+                      ) : (
+                        <span className="w-2.5 flex-shrink-0" />
+                      )}
+                      <span className={cn('font-bold', isBreakEven ? 'text-emerald-700' : 'text-surface-800')}>{pax}</span>
+                      {isBreakEven && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 whitespace-nowrap">
+                          <Target size={9} /> Mín. p/ lucrar
+                        </span>
+                      )}
+                      {isSimulated && !isBreakEven && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-brand-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-orange whitespace-nowrap">
+                          👤 Sua simulação
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-semibold text-surface-700 tabular-nums">
+                    {formatBRL(row.revenue)}
+                  </td>
+                  <td className={cn('px-3 py-2.5 text-right font-bold tabular-nums', isProfit ? 'text-emerald-600' : 'text-red-500')}>
+                    {row.finalResult >= 0 ? '+' : ''}{formatBRL(row.finalResult)}
+                  </td>
+                  <td className={cn('px-3 py-2.5 text-right font-bold tabular-nums', isProfit ? 'text-emerald-600' : 'text-red-500')}>
+                    {formatPercent(row.margin)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
