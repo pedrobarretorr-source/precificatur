@@ -113,7 +113,7 @@ export function CalculatorPage({ initialRoute }: CalculatorPageProps) {
 
   const effectivePrice = useMemo(() => {
     if (mode === 'price') return price;
-    return calcPriceFromMargin(totalFixed, totalVarPct, marginPct, marginPax);
+    return calcPriceFromMargin(totalFixed, totalVarPct, marginPct, simulationPax);
   }, [mode, price, marginPct, marginPax, totalFixed, totalVarPct]);
 
   const simulation = useMemo(
@@ -164,7 +164,7 @@ export function CalculatorPage({ initialRoute }: CalculatorPageProps) {
     if (step === 0) return routeName.trim().length > 0 && simulationPax >= 1;
     if (step === 3) {
       if (mode === 'price') return price > 0;
-      return marginPct > 0 && marginPax > 0;
+      return marginPct > 0;
     }
     return true;
   }
@@ -786,27 +786,15 @@ export function CalculatorPage({ initialRoute }: CalculatorPageProps) {
                 <p className="input-hint text-center">Quanto o cliente vai pagar por pessoa</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="text-center">
-                  <label className="input-label block text-center">Margem desejada (%)</label>
-                  <input
-                    className="input text-2xl sm:text-3xl font-extrabold text-brand-navy text-center py-4"
-                    type="number"
-                    placeholder="0"
-                    value={marginPct || ''}
-                    onChange={e => setMarginPct(parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="text-center">
-                  <label className="input-label block text-center">Qtd. passageiros</label>
-                  <input
-                    className="input text-2xl sm:text-3xl font-extrabold text-brand-navy text-center py-4"
-                    type="number"
-                    placeholder="10"
-                    value={marginPax || ''}
-                    onChange={e => setMarginPax(parseInt(e.target.value) || 10)}
-                  />
-                </div>
+              <div className="text-center">
+                <label className="input-label block text-center">Margem desejada (%)</label>
+                <input
+                  className="input text-2xl sm:text-3xl font-extrabold text-brand-navy text-center py-4"
+                  type="number"
+                  placeholder="0"
+                  value={marginPct || ''}
+                  onChange={e => setMarginPct(parseFloat(e.target.value) || 0)}
+                />
               </div>
             )}
 
@@ -818,7 +806,7 @@ export function CalculatorPage({ initialRoute }: CalculatorPageProps) {
                 </p>
                 <p className="text-3xl font-extrabold text-brand-navy">{formatBRL(effectivePrice)}</p>
                 <p className="text-xs text-surface-500 mt-1">
-                  Para ter {formatPercent(marginPct)} de margem com {marginPax} passageiros
+                  Para ter {formatPercent(marginPct)} de margem com {simulationPax} passageiros
                 </p>
               </div>
             )}
@@ -831,7 +819,7 @@ export function CalculatorPage({ initialRoute }: CalculatorPageProps) {
           <div>
             <div className="text-xs text-surface-600 bg-surface-100 rounded-lg px-3 py-2 mb-5">
               {mode === 'profit'
-                ? `Preço calculado: ${formatBRL(effectivePrice)} (margem ${formatPercent(marginPct)} com ${marginPax} pax)`
+                ? `Preço calculado: ${formatBRL(effectivePrice)} (margem ${formatPercent(marginPct)} com ${simulationPax} pax)`
                 : `Preço definido: ${formatBRL(effectivePrice)} por passageiro`}
             </div>
             <SimulationResults
