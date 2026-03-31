@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Save, Check } from 'lucide-react';
 import { SimulationResults } from '@/components/calculator/SimulationResults';
 import {
@@ -18,8 +18,12 @@ import {
 } from '@/types';
 import { generateId, cn } from '@/lib/utils';
 import { useRoutes } from '@/hooks/useRoutes';
-import type { RouteType, Currency } from '@/types';
+import type { RouteType, Currency, Route } from '@/types';
 import { PRESET_FIXED_COSTS, PRESET_VARIABLE_COSTS } from '@/data/preset-costs';
+
+interface CalculatorPageProps {
+  initialRoute?: Route;
+}
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -35,19 +39,19 @@ const CATEGORY_EMOJI: Record<CostCategory, string> = {
 };
 
 const STEPS = [
-  { label: 'Roteiro',      title: 'Sobre o roteiro',        sub: 'Identifique seu roteiro com um nome. Cliente e data são opcionais.' },
+  { label: 'Roteiro', title: 'Sobre o roteiro', sub: 'Identifique seu roteiro com um nome. Cliente e data são opcionais.' },
   { label: 'Custos fixos', title: 'Custos fixos do roteiro', sub: 'Custos que não mudam com a quantidade de passageiros.' },
-  { label: 'Variáveis',    title: 'Custos variáveis',        sub: 'Percentuais sobre o preço de venda. Ajuste ou adicione novos.' },
-  { label: 'Preço',        title: 'Defina seu preço',        sub: 'Escolha como quer precificar: pelo valor de venda ou pela margem de lucro.' },
-  { label: 'Resultado',    title: 'Simulação completa',      sub: 'Análise financeira detalhada do seu roteiro.' },
+  { label: 'Variáveis', title: 'Custos variáveis', sub: 'Percentuais sobre o preço de venda. Ajuste ou adicione novos.' },
+  { label: 'Preço', title: 'Defina seu preço', sub: 'Escolha como quer precificar: pelo valor de venda ou pela margem de lucro.' },
+  { label: 'Resultado', title: 'Simulação completa', sub: 'Análise financeira detalhada do seu roteiro.' },
 ];
 
 const GUIDE_MESSAGES = [
   'Vamos começar! O nome do roteiro é como você vai identificar esse passeio depois. Quanto mais descritivo, mais fácil de encontrar nas suas análises.',
-  'Aqui entram os gastos que existem independente de quantas pessoas vão — van, hotel, guia. Seja com 2 ou 20 passageiros, você paga do mesmo jeito.',
+  'Aqui entram os gastos que existem independente de quantas pessoas vão. van, hotel, guia. Seja com 2 ou 20 passageiros, você paga do mesmo jeito.',
   'Esses percentuais incidem sobre o preço de venda. Taxas de cartão, comissão de agência... Como dependem do valor cobrado, entram como %.',
-  'Aqui está o coração da precificação! Defina o preço que quer cobrar, ou diga qual margem de lucro quer ter — e a calculadora encontra o valor ideal.',
-  'Pronto! Observe o ponto de equilíbrio: é o mínimo de passageiros para não ter prejuízo. Qualquer passageiro acima disso já é lucro puro!',
+  'Aqui está o coração da precificação! Defina o preço que quer cobrar, ou diga qual margem de lucro quer ter, e a calculadora encontra o valor ideal.',
+  'Pronto! Observe o ponto de equilíbrio: é o mínimo de passageiros para não ter prejuízo. Qualquer passageiro acima disso já é lucro!',
 ];
 
 type PricingMode = 'price' | 'profit';
@@ -61,42 +65,47 @@ function calcPriceFromMargin(totalFixed: number, totalVarPct: number, marginPct:
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function CalculatorPage() {
+export function CalculatorPage({ initialRoute }: CalculatorPageProps) {
   // Wizard step
   const [step, setStep] = useState(0);
 
   // Step 0 — Route info
-  const [routeName, setRouteName] = useState('');
-  const [client, setClient] = useState('');
-  const [date, setDate] = useState('');
+  const [routeName, setRouteName] = useState(initialRoute?.name ?? '');
+  const [client, setClient] = useState(initialRoute?.client ?? '');
+  const [date, setDate] = useState(initialRoute?.date ?? '');
+  const [notes, setNotes] = useState(initialRoute?.notes ?? '');
 
   // Step 1 — Fixed costs
-  const [fixedCosts, setFixedCosts] = useState<CostItem[]>([]);
+  const [fixedCosts, setFixedCosts] = useState<CostItem[]>(initialRoute?.fixedCosts ?? []);
   const [newCat, setNewCat] = useState<CostCategory>('transfer');
   const [newVal, setNewVal] = useState('');
   const [newLbl, setNewLbl] = useState('');
 
   // Step 2 — Variable costs
-  const [varCosts, setVarCosts] = useState<VariableCost[]>(DEFAULT_VARIABLE_COSTS);
+  const [varCosts, setVarCosts] = useState<VariableCost[]>(
+    initialRoute?.variableCosts?.length ? initialRoute.variableCosts : DEFAULT_VARIABLE_COSTS
+  );
   const [newVarLbl, setNewVarLbl] = useState('');
   const [newVarVal, setNewVarVal] = useState('');
   const [newVarType, setNewVarType] = useState<'percentage' | 'brl'>('percentage');
   const [newVarPerPax, setNewVarPerPax] = useState(true);
-
+  const [pendingPreset, setPendingPreset] = useState<import('@/data/preset-costs').PresetVariableCost | null>(null);
+  const [pendingPresetVal, setPendingPresetVal] = useState('');
 
   // Step 3 — Pricing
   const [mode, setMode] = useState<PricingMode>('price');
-  const [price, setPrice] = useState(0);
+  const [price, setPrice] = useState(initialRoute?.estimatedPrice ?? 0);
   const [marginPct, setMarginPct] = useState(0);
   const [marginPax, setMarginPax] = useState(10);
-  const [simulationPax, setSimulationPax] = useState(0);
-  const [isExplorationMode, setIsExplorationMode] = useState(false);
-  const [maxPax, setMaxPax] = useState(50);
+  const [simulationPax, setSimulationPax] = useState(initialRoute?.simulationPax ?? 0);
+  const [isExplorationMode, setIsExplorationMode] = useState(initialRoute?.isExplorationMode ?? false);
+  const [maxPax, setMaxPax] = useState(initialRoute?.maxPax ?? 30);
 
-  // Persistence — stable identity for this calculator session
-  const [routeId] = useState<string>(() => crypto.randomUUID());
-  const [routeCreatedAt] = useState<string>(() => new Date().toISOString());
-  const { saveRoute, saving } = useRoutes();
+  // Persistence — use existing id if editing, new id if creating
+  const [routeId] = useState<string>(() => initialRoute?.id ?? crypto.randomUUID());
+  const [routeCreatedAt] = useState<string>(() => initialRoute?.createdAt ?? new Date().toISOString());
+  const { saveRoute, saving, routes } = useRoutes();
+  const [saved, setSaved] = useState(false);
 
   // ── Derived ──
   const totalFixed = useMemo(() => calcTotalFixedCosts(fixedCosts), [fixedCosts]);
@@ -109,7 +118,7 @@ export function CalculatorPage() {
 
   const simulation = useMemo(
     () => isExplorationMode
-      ? runSimulation(fixedCosts, varCosts, effectivePrice, maxPax, 0, simulationPax || 1)
+      ? runSimulation(fixedCosts, varCosts, effectivePrice, maxPax, 0, 1)
       : runSimulation(fixedCosts, varCosts, effectivePrice, simulationPax || 1, 0, simulationPax || 1),
     [fixedCosts, varCosts, effectivePrice, maxPax, simulationPax, isExplorationMode],
   );
@@ -127,12 +136,15 @@ export function CalculatorPage() {
       client,
       date,
       contact: '' as string,
-      notes: '' as string,
+      notes,
       region: '' as string,
       type: 'outro' as RouteType,
       fixedCosts,
       variableCosts: varCosts,
       estimatedPrice: effectivePrice,
+      simulationPax,
+      isExplorationMode,
+      maxPax,
       currency: 'BRL' as Currency,
       days: [],
       isMultiDay: false,
@@ -141,25 +153,18 @@ export function CalculatorPage() {
     };
   }
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      saveRoute(buildCurrentRoute());
-    }, 1500);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fixedCosts, varCosts, effectivePrice, routeName, client, date]);
+  async function handleSave() {
+    await saveRoute(buildCurrentRoute());
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
 
   // ── Validation ──
   function canAdvance() {
-    if (step === 0) return routeName.trim().length > 0;
+    if (step === 0) return routeName.trim().length > 0 && simulationPax >= 1;
     if (step === 3) {
-      if (mode === 'price') return price > 0 && simulationPax > 0;
-      return marginPct > 0 && marginPax > 0 && simulationPax > 0;
+      if (mode === 'price') return price > 0;
+      return marginPct > 0 && marginPax > 0;
     }
     return true;
   }
@@ -170,10 +175,26 @@ export function CalculatorPage() {
     setNewCat(category);
   }
 
-  function applyVarSuggestion(label: string) {
-    setNewVarLbl(label);
-    setNewVarType('brl');
-    setNewVarPerPax(true);
+  function selectPreset(p: import('@/data/preset-costs').PresetVariableCost) {
+    if (varCosts.some(c => c.label === p.label)) return;
+    setPendingPreset(p);
+    setPendingPresetVal('');
+  }
+
+  function confirmPreset() {
+    if (!pendingPreset) return;
+    const numVal = parseFloat(pendingPresetVal) || 0;
+    setVarCosts(prev => [...prev, {
+      id: generateId(),
+      label: pendingPreset.label,
+      emoji: pendingPreset.emoji,
+      type: pendingPreset.type,
+      percentage: pendingPreset.type === 'percentage' ? numVal : 0,
+      brlValue: pendingPreset.type === 'brl' ? numVal : undefined,
+      perPax: pendingPreset.perPax,
+    }]);
+    setPendingPreset(null);
+    setPendingPresetVal('');
   }
 
   // ── Fixed cost helpers ──
@@ -214,17 +235,17 @@ export function CalculatorPage() {
             <div className="flex flex-col items-center flex-1">
               <div className={cn(
                 'w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300',
-                i < step  && 'bg-emerald-500 text-white',
+                i < step && 'bg-emerald-500 text-white',
                 i === step && 'bg-brand-orange text-white scale-110 shadow-button',
-                i > step  && 'bg-surface-200 text-surface-500',
+                i > step && 'bg-surface-200 text-surface-500',
               )}>
                 {i < step ? <Check size={14} /> : i + 1}
               </div>
               <span className={cn(
                 'hidden sm:block text-[10px] font-bold mt-1.5 text-center leading-tight',
                 i === step && 'text-brand-navy',
-                i < step  && 'text-emerald-600',
-                i > step  && 'text-surface-400',
+                i < step && 'text-emerald-600',
+                i > step && 'text-surface-400',
               )}>
                 {s.label}
               </span>
@@ -239,9 +260,11 @@ export function CalculatorPage() {
         ))}
       </div>
 
-      {/* Auto-save indicator */}
-      {saving && (
-        <p className="text-center text-xs text-surface-400 mb-3 -mt-4">Salvando...</p>
+      {/* Save indicator */}
+      {saved && (
+        <p className="text-center text-xs text-emerald-500 mb-3 -mt-4 flex items-center justify-center gap-1">
+          <Check size={12} /> Roteiro salvo!
+        </p>
       )}
 
       {/* ── Step card ── */}
@@ -256,10 +279,16 @@ export function CalculatorPage() {
               <label className="input-label">Nome do roteiro *</label>
               <input
                 className="input"
+                list="route-name-suggestions"
                 placeholder="Ex: City Tour Boa Vista"
                 value={routeName}
                 onChange={e => setRouteName(e.target.value)}
               />
+              <datalist id="route-name-suggestions">
+                {routes.map(r => (
+                  <option key={r.id} value={r.name} />
+                ))}
+              </datalist>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -285,6 +314,74 @@ export function CalculatorPage() {
                 />
               </div>
             </div>
+
+            <div>
+              <label className="input-label">Quantidade de passageiros *</label>
+              <input
+                className="input w-full sm:max-w-[180px]"
+                type="number"
+                min={1}
+                max={100}
+                placeholder="Ex: 15"
+                value={simulationPax || ''}
+                onChange={e => {
+                  const v = Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0));
+                  setSimulationPax(v);
+                  if (isExplorationMode && v >= maxPax) setMaxPax(Math.min(100, v + 1));
+                }}
+              />
+              <p className="input-hint">Quantos passageiros você espera neste roteiro?</p>
+              {/* Range simulation toggle */}
+              <div className="space-y-3 pt-1">
+                <label className={cn(
+                  'flex items-center gap-3 cursor-pointer select-none',
+                  (simulationPax < 1 || simulationPax >= 100) && 'opacity-50 pointer-events-none'
+                )}>
+                  <input
+                    type="checkbox"
+                    checked={isExplorationMode}
+                    disabled={simulationPax < 1 || simulationPax >= 100}
+                    onChange={e => setIsExplorationMode(e.target.checked)}
+                    className="w-4 h-4 rounded accent-brand-orange"
+                  />
+                  <span className="text-sm font-semibold text-surface-700">
+                    Simular faixa de comparação
+                  </span>
+                </label>
+                {isExplorationMode && (
+                  <div>
+                    <label className="input-label">Simular até quantos passageiros? (máx. 100)</label>
+                    <input
+                      className="input w-full sm:max-w-[180px]"
+                      type="number"
+                      min={Math.max(simulationPax + 1, 2)}
+                      max={100}
+                      placeholder="Ex: 30"
+                      value={maxPax || ''}
+                      onChange={e => {
+                        const v = Math.min(100, Math.max(simulationPax + 1, parseInt(e.target.value, 10) || simulationPax + 1));
+                        setMaxPax(v);
+                      }}
+                    />
+                    <p className="input-hint">A tabela mostrará cenários de 1 até este número.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="input-label">
+                Anotações <span className="font-normal text-surface-400">(opcional)</span>
+              </label>
+              <textarea
+                className="input resize-none"
+                rows={3}
+                placeholder="Observações sobre o roteiro, restrições, pedidos especiais..."
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+              />
+            </div>
+
             <Tip>
               O nome do roteiro aparecerá nos relatórios e na gestão de roteiros. Seja descritivo!
             </Tip>
@@ -329,40 +426,40 @@ export function CalculatorPage() {
             {/* Chips sempre visíveis */}
             <div className="rounded-xl bg-surface-50 border border-surface-200 p-4">
               <div className="flex flex-wrap gap-2">
-              {PRESET_FIXED_COSTS.map(p => {
-                const alreadyAdded = fixedCosts.some(c => c.label === p.label);
-                const isSelected = newLbl === p.label && newCat === p.category;
-                return (
-                  <button
-                    key={p.label}
-                    type="button"
-                    disabled={alreadyAdded}
-                    onClick={() => applyFixedSuggestion(p.label, p.category)}
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-150',
-                      alreadyAdded
-                        ? 'bg-emerald-50 text-emerald-400 cursor-default line-through'
-                        : isSelected
-                          ? 'bg-brand-orange text-white border border-brand-orange'
-                          : 'bg-white border border-surface-300 text-surface-600 hover:bg-brand-orange-50 hover:border-brand-orange-200 hover:text-brand-orange-700'
-                    )}
-                  >
-                    {p.label}
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                onClick={() => { setNewCat('outro'); setNewLbl(''); }}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-150 border',
-                  newCat === 'outro' && newLbl === ''
-                    ? 'bg-surface-700 text-white border-surface-700'
-                    : 'bg-surface-200 border-surface-300 text-surface-500 hover:bg-surface-300 hover:text-surface-700'
-                )}
-              >
-                + Outro
-              </button>
+                {PRESET_FIXED_COSTS.map(p => {
+                  const alreadyAdded = fixedCosts.some(c => c.label === p.label);
+                  const isSelected = newLbl === p.label && newCat === p.category;
+                  return (
+                    <button
+                      key={p.label}
+                      type="button"
+                      disabled={alreadyAdded}
+                      onClick={() => applyFixedSuggestion(p.label, p.category)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-150',
+                        alreadyAdded
+                          ? 'bg-emerald-50 text-emerald-400 cursor-default line-through'
+                          : isSelected
+                            ? 'bg-brand-orange text-white border border-brand-orange'
+                            : 'bg-white border border-surface-300 text-surface-600 hover:bg-brand-orange-50 hover:border-brand-orange-200 hover:text-brand-orange-700'
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => { setNewCat('outro'); setNewLbl(''); }}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-150 border',
+                    newCat === 'outro' && newLbl === ''
+                      ? 'bg-surface-700 text-white border-surface-700'
+                      : 'bg-surface-200 border-surface-300 text-surface-500 hover:bg-surface-300 hover:text-surface-700'
+                  )}
+                >
+                  + Outro
+                </button>
               </div>
             </div>
 
@@ -398,8 +495,8 @@ export function CalculatorPage() {
             </div>
 
             <Tip>
-              Custos fixos não mudam com a quantidade de passageiros: transfer, diárias,
-              alimentação, guia local, ingressos.
+              Custos fixos não dependem do número de pessoas, eles existem desde a primeira vaga.
+              Ex: Van, Guia, Hotel, Passeio de barco, Ingresso.
             </Tip>
           </div>
         )}
@@ -407,40 +504,69 @@ export function CalculatorPage() {
         {/* ───── STEP 2 — Variáveis ───── */}
         {step === 2 && (
           <div className="space-y-3">
-            <div className="space-y-0 divide-y divide-surface-200">
-              {varCosts.map(v => (
-                <div key={v.id} className="flex items-center gap-3 py-2.5">
-                  <span className="flex-1 text-sm font-semibold text-surface-700">{v.label}</span>
-                  {v.type === 'brl' ? (
-                    <span className="text-xs text-surface-500 italic">
-                      {formatBRL(v.brlValue ?? 0)} {v.perPax ? '/ pax' : 'rateado'}
-                    </span>
-                  ) : (
-                    <>
-                      <input
-                        type="range"
-                        min={0}
-                        max={30}
-                        step={0.5}
-                        value={v.percentage}
-                        onChange={e =>
-                          setVarCosts(p =>
-                            p.map(c => c.id === v.id ? { ...c, percentage: parseFloat(e.target.value) } : c)
-                          )
-                        }
-                        className="w-24 accent-brand-orange cursor-pointer"
-                      />
-                      <span className="w-12 text-right text-sm font-extrabold text-brand-navy">
-                        {v.percentage}%
-                      </span>
-                    </>
-                  )}
-                  <RemoveBtn onClick={() => setVarCosts(p => p.filter(c => c.id !== v.id))} />
-                </div>
-              ))}
-            </div>
+            {varCosts.length === 0 ? (
+              <div className="text-center py-8 text-surface-400">
+                <div className="text-4xl mb-2">📊</div>
+                <p className="text-sm">
+                  Nenhum custo variável adicionado.<br />
+                  Selecione uma sugestão ou adicione abaixo.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {varCosts.map(v => (
+                  <div key={v.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-100">
+                    {v.emoji && <span className="text-lg">{v.emoji}</span>}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-surface-800 truncate">{v.label}</p>
+                    </div>
+                    {v.type === 'brl' ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.5}
+                          value={v.brlValue ?? ''}
+                          onChange={e =>
+                            setVarCosts(p =>
+                              p.map(c => c.id === v.id ? { ...c, brlValue: parseFloat(e.target.value) || 0 } : c)
+                            )
+                          }
+                          className="input w-24 text-right font-extrabold text-brand-navy py-1.5"
+                          placeholder="0"
+                        />
+                        <span className="text-xs text-surface-500 whitespace-nowrap">{v.perPax ? '/ pax' : 'rateado'}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={0.5}
+                          value={v.percentage || ''}
+                          onChange={e =>
+                            setVarCosts(p =>
+                              p.map(c => c.id === v.id ? { ...c, percentage: parseFloat(e.target.value) || 0 } : c)
+                            )
+                          }
+                          className="input w-20 text-right font-extrabold text-brand-navy py-1.5"
+                          placeholder="0"
+                        />
+                        <span className="text-sm font-bold text-surface-500">%</span>
+                      </div>
+                    )}
+                    <RemoveBtn onClick={() => setVarCosts(p => p.filter(c => c.id !== v.id))} />
+                  </div>
+                ))}
+              </div>
+            )}
 
-            <TotalRow label="Total % sobre o preço:" value={formatPercent(totalVarPct)} />
+            <TotalRow
+              label="Total % sobre o preço:"
+              value={formatPercent(totalVarPct)}
+              tooltip="Esse percentual sai do seu preço antes do lucro. Se o total for 30%, você fica com apenas 70% de cada venda para cobrir custos fixos e lucro."
+            />
 
             <Divider label="Sugestões" />
 
@@ -448,23 +574,23 @@ export function CalculatorPage() {
             <div className="flex flex-wrap gap-1.5 p-3 rounded-xl bg-surface-50 border border-surface-200">
               {PRESET_VARIABLE_COSTS.map(p => {
                 const alreadyAdded = varCosts.some(c => c.label === p.label);
-                const isSelected = newVarLbl === p.label;
+                const isPending = pendingPreset?.label === p.label;
                 return (
                   <button
                     key={p.label}
                     type="button"
                     disabled={alreadyAdded}
-                    onClick={() => applyVarSuggestion(p.label)}
+                    onClick={() => isPending ? setPendingPreset(null) : selectPreset(p)}
                     className={cn(
                       'px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors duration-150',
                       alreadyAdded
                         ? 'bg-emerald-50 text-emerald-400 cursor-default line-through'
-                        : isSelected
+                        : isPending
                           ? 'bg-brand-orange text-white border border-brand-orange'
                           : 'bg-white border border-surface-300 text-surface-600 hover:bg-brand-orange-50 hover:border-brand-orange-200 hover:text-brand-orange-700'
                     )}
                   >
-                    {p.label}
+                    {p.emoji} {p.label}
                   </button>
                 );
               })}
@@ -477,9 +603,89 @@ export function CalculatorPage() {
               </button>
             </div>
 
+            {/* Painel de confirmação do preset selecionado */}
+            {pendingPreset && (() => {
+              const numVal = parseFloat(pendingPresetVal) || 0;
+              const monetaryPreview = pendingPreset.type === 'percentage' && effectivePrice > 0
+                ? formatBRL(effectivePrice * numVal / 100)
+                : null;
+              return (
+                <div className="rounded-xl bg-brand-orange-50 border-2 border-brand-orange-200 p-4 space-y-3 animate-slide-up">
+                  {/* Header */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{pendingPreset.emoji}</span>
+                    <span className="text-sm font-extrabold text-surface-800">{pendingPreset.label}</span>
+                  </div>
+
+                  {/* Input */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-surface-500 uppercase tracking-wide">
+                      {pendingPreset.type === 'percentage'
+                        ? 'Percentual sobre o preço de venda (%)'
+                        : pendingPreset.perPax
+                          ? 'Valor por passageiro (R$)'
+                          : 'Valor total rateado entre passageiros (R$)'}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {pendingPreset.type === 'brl' && (
+                        <span className="text-sm font-extrabold text-surface-500">R$</span>
+                      )}
+                      <input
+                        autoFocus
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        placeholder="0"
+                        value={pendingPresetVal}
+                        onChange={e => setPendingPresetVal(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') confirmPreset();
+                          if (e.key === 'Escape') { setPendingPreset(null); setPendingPresetVal(''); }
+                        }}
+                        className="input w-28 text-right font-extrabold text-brand-navy py-1.5"
+                      />
+                      {pendingPreset.type === 'percentage' && (
+                        <span className="text-sm font-extrabold text-surface-500">%</span>
+                      )}
+                    </div>
+                    {/* Monetary preview for % type */}
+                    {pendingPreset.type === 'percentage' && numVal > 0 && (
+                      <p className="text-xs text-surface-500">
+                        {effectivePrice > 0
+                          ? `≈ ${monetaryPreview} por passageiro (sobre o preço de ${formatBRL(effectivePrice)})`
+                          : 'Defina o preço na próxima etapa para ver o valor em R$.'}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={confirmPreset}
+                      className="flex-1 py-2 rounded-xl bg-brand-orange text-white text-sm font-bold hover:bg-brand-orange-500 transition-colors"
+                    >
+                      Adicionar ao orçamento
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPendingPreset(null); setPendingPresetVal(''); }}
+                      className="px-4 py-2 rounded-xl bg-surface-200 text-surface-600 text-sm font-bold hover:bg-surface-300 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
             <Divider label="Adicionar custo variável" />
 
             {/* Toggle % / R$ */}
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="text-xs font-semibold text-surface-400 uppercase tracking-wider">Tipo de custo</span>
+              <Tooltip text="Percentual: incide sobre o preço de venda. Ex: taxa de cartão de 3% = R$3 por cada R$100 cobrado. Valor fixo (R$): custo direto com valor definido, como um fotógrafo." />
+            </div>
             <div className="flex rounded-xl bg-surface-200 p-1">
               {(['percentage', 'brl'] as const).map(t => (
                 <button
@@ -504,22 +710,25 @@ export function CalculatorPage() {
                 onKeyDown={e => e.key === 'Enter' && addVarCost()}
               />
               <div className="flex gap-2 items-end">
-              <input
-                className="input flex-1 text-right"
-                type="number"
-                placeholder={newVarType === 'percentage' ? '%' : 'R$'}
-                value={newVarVal}
-                onChange={e => setNewVarVal(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addVarCost()}
-              />
-              <AddBtn onClick={addVarCost} />
+                <input
+                  className="input flex-1 text-right"
+                  type="number"
+                  placeholder={newVarType === 'percentage' ? '%' : 'R$'}
+                  value={newVarVal}
+                  onChange={e => setNewVarVal(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addVarCost()}
+                />
+                <AddBtn onClick={addVarCost} />
               </div>
             </div>
 
             {/* Por pax toggle — só aparece no modo R$ */}
             {newVarType === 'brl' && (
               <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-surface-100 border border-surface-200">
-                <span className="text-sm font-semibold text-surface-700">Por passageiro?</span>
+                <span className="flex items-center gap-1 text-sm font-semibold text-surface-700">
+                  Por passageiro?
+                  <Tooltip text="Por passageiro: cada pessoa paga esse valor individualmente. Não (rateado): o custo total é dividido entre todos os passageiros." />
+                </span>
                 <div className="flex rounded-lg bg-surface-200 p-0.5 gap-0.5">
                   {[true, false].map(opt => (
                     <button
@@ -614,55 +823,6 @@ export function CalculatorPage() {
               </div>
             )}
 
-            <div>
-              <label className="input-label">
-                {isExplorationMode ? 'Faixa de passageiros' : 'Quantidade de passageiros'}
-              </label>
-              {isExplorationMode ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xs">
-                  <div>
-                    <label className="input-label font-normal text-surface-400">De</label>
-                    <input
-                      className="input"
-                      type="number"
-                      min={1}
-                      max={maxPax - 1}
-                      value={simulationPax || ''}
-                      onChange={e => {
-                        const v = Math.max(1, parseInt(e.target.value) || 0);
-                        setSimulationPax(v);
-                        if (v >= maxPax) setMaxPax(v + 1);
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="input-label font-normal text-surface-400">Até (máx. 100)</label>
-                    <input
-                      className="input"
-                      type="number"
-                      min={(simulationPax || 1) + 1}
-                      max={100}
-                      value={maxPax || ''}
-                      onChange={e => {
-                        const v = Math.min(100, parseInt(e.target.value) || 0);
-                        setMaxPax(v);
-                        if (v <= simulationPax) setSimulationPax(Math.max(1, v - 1));
-                      }}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <input
-                  className="input w-full sm:max-w-[160px]"
-                  type="number"
-                  min={1}
-                  max={100}
-                  placeholder="Ex: 25"
-                  value={simulationPax || ''}
-                  onChange={e => setSimulationPax(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-                />
-              )}
-            </div>
           </div>
         )}
 
@@ -679,13 +839,6 @@ export function CalculatorPage() {
               estimatedPrice={effectivePrice}
               isExplorationMode={isExplorationMode}
               breakEvenPax={breakEvenForDisplay}
-              onCompareScenarios={() => {
-                setIsExplorationMode(true);
-                const safePax = Math.min(simulationPax, 99);
-                setSimulationPax(safePax);
-                setMaxPax(Math.min(100, safePax + 20));
-                setStep(3);
-              }}
             />
           </div>
         )}
@@ -717,11 +870,11 @@ export function CalculatorPage() {
           </button>
         ) : (
           <button
-            onClick={() => saveRoute(buildCurrentRoute())}
+            onClick={handleSave}
             disabled={saving}
             className="btn btn-secondary flex items-center gap-2 text-sm disabled:opacity-60"
           >
-            {saving ? 'Salvando...' : <><Save size={16} /> Salvar roteiro</>}
+            {saving ? 'Salvando...' : saved ? <><Check size={16} /> Salvo!</> : <><Save size={16} /> Salvar roteiro</>}
           </button>
         )}
       </div>
@@ -744,11 +897,46 @@ function Tip({ children, variant = 'gold' }: { children: React.ReactNode; varian
   );
 }
 
-function TotalRow({ label, value }: { label: string; value: string }) {
+function TotalRow({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) {
   return (
     <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-surface-50 border border-surface-200">
-      <span className="text-xs text-surface-500">{label}</span>
+      <span className="flex items-center gap-1 text-xs text-surface-500">
+        {label}
+        {tooltip && <Tooltip text={tooltip} />}
+      </span>
       <span className="text-sm font-extrabold text-brand-navy">{value}</span>
+    </div>
+  );
+}
+
+function Tooltip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative inline-flex items-center">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-4 h-4 rounded-full bg-surface-200 text-surface-500 text-[10px] font-extrabold flex items-center justify-center hover:bg-surface-300 transition-colors"
+        aria-label="Ajuda"
+      >
+        ?
+      </button>
+      {open && (
+        <div className="absolute left-5 top-0 z-50 w-64 rounded-xl bg-white border border-surface-200 shadow-lg p-3 text-xs text-surface-600 leading-relaxed">
+          {text}
+        </div>
+      )}
     </div>
   );
 }
