@@ -79,61 +79,84 @@ function MetricCard({ label, value, sub, positive }: { label: string; value: str
 
 /* ── Section 1: Quantas pessoas você precisa? ────────────────────────────── */
 
-function PaxProgressBar({ breakEvenPax, simulatedPax }: { breakEvenPax: number | null; simulatedPax: number }) {
+function PaxBreakEvenCard({ breakEvenPax, simulatedPax }: { breakEvenPax: number | null; simulatedPax: number }) {
   if (breakEvenPax === null) {
     return (
-      <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
-        Com os custos e preço atuais, não foi possível calcular o mínimo de pessoas. Tente aumentar o preço ou reduzir os custos.
+      <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-4 space-y-1">
+        <p className="text-sm font-bold text-amber-800">Ponto de equilíbrio não encontrado</p>
+        <p className="text-xs text-amber-700 leading-relaxed">
+          Com os custos e preço atuais, não há quantidade de pessoas que cubra os custos. Tente aumentar o preço ou reduzir os custos fixos.
+        </p>
       </div>
     );
   }
 
-  const isOk = simulatedPax >= breakEvenPax;
-  const barMax = Math.round(Math.max(breakEvenPax, simulatedPax) * 1.5);
-  const breakEvenPct = Math.min(100, (breakEvenPax / barMax) * 100);
-  const simulatedPct = Math.min(100, (simulatedPax / barMax) * 100);
+  const gap = simulatedPax - breakEvenPax;
+  const isOk = gap >= 0;
+  const isExact = gap === 0;
+
+  const statusMsg = isExact
+    ? { icon: '⚠️', text: 'Você está exatamente no limite. Qualquer desistência gera prejuízo.', color: 'bg-amber-50 border-amber-200 text-amber-800' }
+    : isOk
+      ? { icon: '✅', text: `Você tem ${gap} pessoa${gap !== 1 ? 's' : ''} acima do mínimo — boa margem de segurança.`, color: 'bg-emerald-50 border-emerald-200 text-emerald-800' }
+      : { icon: '⚠️', text: `Faltam ${Math.abs(gap)} pessoa${Math.abs(gap) !== 1 ? 's' : ''} para cobrir os custos. Abaixo do ponto de equilíbrio.`, color: 'bg-red-50 border-red-200 text-red-800' };
 
   return (
-    <div className="space-y-3">
-      <div className="relative h-6 rounded-full bg-surface-200 overflow-hidden">
-        {/* Break-even segment */}
-        <div
-          className={cn('absolute left-0 top-0 h-full rounded-full transition-all duration-500',
-            isOk ? 'bg-emerald-400' : 'bg-red-400'
-          )}
-          style={{ width: `${breakEvenPct}%` }}
-        />
-        {/* Simulated pax marker */}
-        <div
-          className="absolute top-0 h-full w-0.5 bg-brand-navy"
-          style={{ left: `${simulatedPct}%` }}
-        />
+    <div className="space-y-4">
+      {/* Two stat cards */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Break-even card */}
+        <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 px-4 py-4 flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="relative flex h-2 w-2 flex-shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide">Ponto de equilíbrio</span>
+          </div>
+          <p className="text-3xl font-extrabold text-emerald-700 tabular-nums leading-none">{breakEvenPax}</p>
+          <p className="text-xs text-emerald-600 leading-snug mt-0.5">
+            pessoas mínimas para não ter prejuízo
+          </p>
+        </div>
+
+        {/* Simulation card */}
+        <div className={cn(
+          'rounded-xl border-2 px-4 py-4 flex flex-col gap-1',
+          isOk ? 'border-brand-navy-100 bg-brand-navy-50' : 'border-red-200 bg-red-50'
+        )}>
+          <span className="text-[10px] font-bold uppercase tracking-wide mb-1"
+            style={{ color: isOk ? 'var(--color-brand-navy, #1e3a5f)' : '#dc2626' }}>
+            Sua simulação
+          </span>
+          <p className={cn('text-3xl font-extrabold tabular-nums leading-none',
+            isOk ? 'text-brand-navy' : 'text-red-600'
+          )}>{simulatedPax}</p>
+          <p className={cn('text-xs leading-snug mt-0.5', isOk ? 'text-brand-navy-700' : 'text-red-600')}>
+            passageiros esperados no roteiro
+          </p>
+        </div>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-surface-500">
-        <span>0</span>
-        <span className="font-bold text-surface-700">{barMax} pessoas</span>
-      </div>
+      {/* Gap pill */}
+      {!isExact && (
+        <div className="flex justify-center">
+          <span className={cn(
+            'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold border',
+            isOk
+              ? 'bg-emerald-100 border-emerald-200 text-emerald-700'
+              : 'bg-red-100 border-red-200 text-red-700'
+          )}>
+            {isOk ? `+${gap}` : gap} {Math.abs(gap) === 1 ? 'pessoa' : 'pessoas'} {isOk ? 'acima do mínimo' : 'abaixo do mínimo'}
+          </span>
+        </div>
+      )}
 
-      <div className="flex flex-wrap gap-3 text-xs">
-        <span className="flex items-center gap-1.5">
-          <span className={cn('w-3 h-3 rounded-full flex-shrink-0', isOk ? 'bg-emerald-400' : 'bg-red-400')} />
-          <span>Mínimo para lucrar: <strong>{breakEvenPax} pessoas</strong></span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-0.5 h-4 bg-brand-navy flex-shrink-0" />
-          <span>Sua simulação: <strong>{simulatedPax} pessoas</strong></span>
-        </span>
+      {/* Status banner */}
+      <div className={cn('rounded-xl border px-4 py-3 flex items-start gap-2.5', statusMsg.color)}>
+        <span className="text-base flex-shrink-0">{statusMsg.icon}</span>
+        <p className="text-sm leading-relaxed font-medium">{statusMsg.text}</p>
       </div>
-
-      <p className={cn('text-sm font-semibold', isOk ? 'text-emerald-700' : 'text-red-600')}>
-        {isOk
-          ? simulatedPax === breakEvenPax
-            ? `Você simulou exatamente o mínimo. Qualquer desistência gera prejuízo.`
-            : `✅ Você simulou ${simulatedPax - breakEvenPax} pessoa${simulatedPax - breakEvenPax !== 1 ? 's' : ''} acima do mínimo.`
-          : `⚠️ Faltam ${breakEvenPax - simulatedPax} pessoa${breakEvenPax - simulatedPax !== 1 ? 's' : ''} para começar a lucrar.`
-        }
-      </p>
     </div>
   );
 }
@@ -360,6 +383,30 @@ function InsightsList({
     insights.push({ icon: '❓', text: `Com os custos e preço atuais, não foi possível calcular o mínimo de pessoas. Tente aumentar o preço ou reduzir os custos.` });
   }
 
+  // ── 30% margin goal ──
+  const TARGET = 30;
+  const alreadyAt30 = row.margin >= TARGET;
+
+  // varFrac: variable cost as fraction of price (from current row data)
+  const varFrac = estimatedPrice > 0 ? varSliceR / estimatedPrice : 0;
+  const factor = 1 - varFrac - TARGET / 100; // headroom after variable costs and 30% margin
+
+  // Price needed for 30% with current pax
+  const priceFor30 = factor > 0 && totalFixed > 0
+    ? totalFixed / (row.pax * factor)
+    : null;
+
+  // Pax needed for 30% with current price
+  const paxFor30 = factor > 0 && totalFixed > 0
+    ? Math.ceil(totalFixed / (estimatedPrice * factor))
+    : null;
+
+  // Fixed cost reduction needed for 30% with current price and pax
+  // margin = (price*pax - totalFixed - varSliceR*pax) / (price*pax) = 0.30
+  // totalFixed = price*pax*(1 - varFrac - 0.30)
+  const maxFixedFor30 = estimatedPrice * row.pax * factor;
+  const costCutNeeded = totalFixed > 0 ? totalFixed - maxFixedFor30 : null;
+
   return (
     <div className="space-y-2.5">
       {insights.map((ins, i) => (
@@ -368,6 +415,128 @@ function InsightsList({
           <p className="text-sm text-surface-700 leading-relaxed">{ins.text}</p>
         </div>
       ))}
+
+      {/* 30% goal card — collapsible */}
+      <MarginGoalCard
+        currentMargin={row.margin}
+        alreadyAt30={alreadyAt30}
+        priceFor30={priceFor30}
+        paxFor30={paxFor30}
+        costCutNeeded={costCutNeeded}
+        currentPax={row.pax}
+        currentPrice={estimatedPrice}
+      />
+    </div>
+  );
+}
+
+/* ── 30% Margin Goal Card ────────────────────────────────────────────────── */
+
+function MarginGoalCard({
+  currentMargin,
+  alreadyAt30,
+  priceFor30,
+  paxFor30,
+  costCutNeeded,
+  currentPax,
+  currentPrice,
+}: {
+  currentMargin: number;
+  alreadyAt30: boolean;
+  priceFor30: number | null;
+  paxFor30: number | null;
+  costCutNeeded: number | null;
+  currentPax: number;
+  currentPrice: number;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (alreadyAt30) {
+    return (
+      <div className="flex items-start gap-3 bg-emerald-50 rounded-xl px-4 py-3 border border-emerald-200">
+        <span className="text-base flex-shrink-0">🏆</span>
+        <p className="text-sm text-emerald-700 leading-relaxed font-semibold">
+          Sua margem atual de {formatPercent(currentMargin)} já supera os 30%. Ótimo trabalho!
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-brand-orange-200 overflow-hidden">
+      {/* Toggle header */}
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-brand-orange-50 hover:bg-brand-orange-100 transition-colors text-left"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-base">🎯</span>
+          <span className="text-sm font-bold text-brand-orange">Como chegar em 30% de margem?</span>
+        </div>
+        <span className="text-brand-orange">
+          {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </span>
+      </button>
+
+      {/* Expandable content */}
+      {open && (
+        <div className="px-4 py-4 bg-white space-y-3">
+          <p className="text-xs text-surface-500 leading-relaxed">
+            Sua margem atual é <strong>{formatPercent(currentMargin)}</strong>. Aqui estão três caminhos para atingir os 30%:
+          </p>
+
+          {/* Option A — raise price */}
+          {priceFor30 !== null && priceFor30 > currentPrice && (
+            <div className="flex items-start gap-3 rounded-xl bg-surface-50 border border-surface-200 px-4 py-3">
+              <span className="text-base flex-shrink-0">💰</span>
+              <div>
+                <p className="text-sm font-bold text-surface-800">Aumentar o preço</p>
+                <p className="text-sm text-surface-600 leading-relaxed">
+                  Com {currentPax} passageiros, você precisaria cobrar{' '}
+                  <strong className="text-brand-navy">{formatBRL(priceFor30)}</strong> por pessoa
+                  {' '}(hoje é {formatBRL(currentPrice)}, diferença de {formatBRL(priceFor30 - currentPrice)}).
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Option B — more people */}
+          {paxFor30 !== null && paxFor30 > currentPax && (
+            <div className="flex items-start gap-3 rounded-xl bg-surface-50 border border-surface-200 px-4 py-3">
+              <span className="text-base flex-shrink-0">👥</span>
+              <div>
+                <p className="text-sm font-bold text-surface-800">Trazer mais pessoas</p>
+                <p className="text-sm text-surface-600 leading-relaxed">
+                  Mantendo o preço de {formatBRL(currentPrice)}, você precisaria de{' '}
+                  <strong className="text-brand-navy">{paxFor30} passageiros</strong>
+                  {' '}(mais {paxFor30 - currentPax} que agora).
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Option C — cut fixed costs */}
+          {costCutNeeded !== null && costCutNeeded > 0 && (
+            <div className="flex items-start gap-3 rounded-xl bg-surface-50 border border-surface-200 px-4 py-3">
+              <span className="text-base flex-shrink-0">✂️</span>
+              <div>
+                <p className="text-sm font-bold text-surface-800">Reduzir custos fixos</p>
+                <p className="text-sm text-surface-600 leading-relaxed">
+                  Mantendo preço e passageiros, seria necessário cortar{' '}
+                  <strong className="text-brand-navy">{formatBRL(costCutNeeded)}</strong> dos custos fixos do roteiro.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {priceFor30 === null && paxFor30 === null && costCutNeeded === null && (
+            <p className="text-xs text-surface-500">
+              Com os custos variáveis atuais, os 30% de margem não são alcançáveis com esse preço. Revise as taxas e comissões.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -493,7 +662,7 @@ export function SimulationResults({
               <Target size={16} className="text-brand-orange flex-shrink-0" />
               <h4 className="text-sm font-extrabold text-surface-800">Quantas pessoas você precisa?</h4>
             </div>
-            <PaxProgressBar breakEvenPax={breakEvenPax} simulatedPax={row.pax} />
+            <PaxBreakEvenCard breakEvenPax={breakEvenPax} simulatedPax={row.pax} />
           </section>
 
           {/* Section 2 */}
