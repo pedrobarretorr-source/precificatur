@@ -96,7 +96,7 @@ export function CalculatorPage({ initialRoute }: CalculatorPageProps) {
   const [mode, setMode] = useState<PricingMode>('price');
   const [price, setPrice] = useState(initialRoute?.estimatedPrice ?? 0);
   const [marginPct, setMarginPct] = useState(0);
-  const [marginPax, setMarginPax] = useState(10);
+
   const [simulationPax, setSimulationPax] = useState(initialRoute?.simulationPax ?? 0);
   const [isExplorationMode, setIsExplorationMode] = useState(initialRoute?.isExplorationMode ?? false);
   const [maxPax, setMaxPax] = useState(initialRoute?.maxPax ?? 30);
@@ -114,7 +114,7 @@ export function CalculatorPage({ initialRoute }: CalculatorPageProps) {
   const effectivePrice = useMemo(() => {
     if (mode === 'price') return price;
     return calcPriceFromMargin(totalFixed, totalVarPct, marginPct, simulationPax);
-  }, [mode, price, marginPct, marginPax, totalFixed, totalVarPct]);
+  }, [mode, price, marginPct, simulationPax, totalFixed, totalVarPct]);
 
   const simulation = useMemo(
     () => isExplorationMode
