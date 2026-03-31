@@ -432,10 +432,10 @@ function MarginGoalCard({
 
   if (alreadyAt30) {
     return (
-      <div className="flex items-start gap-3 bg-emerald-50 rounded-xl px-4 py-3 border border-emerald-200">
+      <div className="flex items-center gap-3 bg-emerald-50 rounded-xl px-4 py-3 border border-emerald-200">
         <span className="text-base flex-shrink-0">🏆</span>
-        <p className="text-sm text-emerald-700 leading-relaxed font-semibold">
-          Sua margem atual de {formatPercent(currentMargin)} já supera os 30%. Ótimo trabalho!
+        <p className="text-sm text-emerald-700 font-bold">
+          {formatPercent(currentMargin)} de margem — excelente!
         </p>
       </div>
     );
