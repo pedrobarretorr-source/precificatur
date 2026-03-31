@@ -1,4 +1,5 @@
-import { Map, Calendar, User, Copy, Calculator, TrendingUp, TrendingDown, Loader2, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Map, Calendar, User, Copy, Calculator, TrendingUp, TrendingDown, Loader2, Trash2, Check } from 'lucide-react';
 import { useRoutes } from '@/hooks/useRoutes';
 import { ROUTE_TYPE_LABELS, COST_CATEGORY_LABELS, type Route } from '@/types';
 import {
@@ -16,11 +17,11 @@ const CATEGORY_EMOJI: Record<string, string> = {
 };
 
 interface RoutesPageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, route?: Route) => void;
 }
 
 export function RoutesPage({ onNavigate }: RoutesPageProps) {
-  const { routes, loading, saving, error, deleteRoute } = useRoutes();
+  const { routes, loading, saving, error, deleteRoute, saveRoute } = useRoutes();
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -58,7 +59,7 @@ export function RoutesPage({ onNavigate }: RoutesPageProps) {
           </div>
         ) : (
           routes.map(route => (
-            <RouteCard key={route.id} route={route} onNavigate={onNavigate} onDelete={deleteRoute} />
+            <RouteCard key={route.id} route={route} onNavigate={onNavigate} onDelete={deleteRoute} onDuplicate={saveRoute} />
           ))
         )}
       </div>
@@ -81,11 +82,28 @@ export function RoutesPage({ onNavigate }: RoutesPageProps) {
 
 // ── Route Card ────────────────────────────────────────────────────────────────
 
-function RouteCard({ route, onNavigate, onDelete }: {
+function RouteCard({ route, onNavigate, onDelete, onDuplicate }: {
   route: Route;
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, route?: Route) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (route: Partial<Route> & { id: string }) => Promise<void>;
 }) {
+  const [duplicating, setDuplicating] = useState(false);
+  const [duplicated, setDuplicated] = useState(false);
+
+  async function handleDuplicate() {
+    setDuplicating(true);
+    await onDuplicate({
+      ...route,
+      id: crypto.randomUUID(),
+      name: `${route.name} (cópia)`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    setDuplicating(false);
+    setDuplicated(true);
+    setTimeout(() => setDuplicated(false), 2000);
+  }
   const totalFixed = calcTotalFixedCosts(route.fixedCosts);
   const totalVarPct = calcTotalVariablePercent(route.variableCosts);
   const simulation = runSimulation(route.fixedCosts, route.variableCosts, route.estimatedPrice, 30);
@@ -126,16 +144,22 @@ function RouteCard({ route, onNavigate, onDelete }: {
         {/* Action buttons */}
         <div className="flex gap-2 flex-shrink-0">
           <button
-            onClick={() => onNavigate('calculator')}
+            onClick={() => onNavigate('calculator', route)}
             className="flex items-center gap-1.5 p-2.5 sm:px-3 sm:py-2 rounded-xl bg-brand-orange text-white text-xs font-bold hover:bg-brand-orange-500 transition-all"
           >
             <Calculator size={16} className="sm:w-[13px] sm:h-[13px]" /> <span className="hidden sm:inline">Abrir na Calculadora</span>
           </button>
           <button
-            onClick={() => alert('Duplicar roteiro — em breve')}
-            className="flex items-center gap-1.5 p-2.5 sm:px-3 sm:py-2 rounded-xl border-2 border-surface-300 text-surface-600 text-xs font-bold hover:border-surface-400 transition-all"
+            onClick={handleDuplicate}
+            disabled={duplicating || duplicated}
+            className="flex items-center gap-1.5 p-2.5 sm:px-3 sm:py-2 rounded-xl border-2 border-surface-300 text-surface-600 text-xs font-bold hover:border-surface-400 transition-all disabled:opacity-60"
           >
-            <Copy size={16} className="sm:w-[13px] sm:h-[13px]" /> <span className="hidden sm:inline">Duplicar</span>
+            {duplicated
+              ? <><Check size={14} className="text-emerald-500" /> <span className="hidden sm:inline text-emerald-600">Duplicado!</span></>
+              : duplicating
+                ? <><Loader2 size={14} className="animate-spin" /> <span className="hidden sm:inline">Duplicando...</span></>
+                : <><Copy size={16} className="sm:w-[13px] sm:h-[13px]" /> <span className="hidden sm:inline">Duplicar</span></>
+            }
           </button>
           <button
             onClick={() => onDelete(route.id)}

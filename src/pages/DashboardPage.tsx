@@ -1,21 +1,43 @@
+import { useMemo } from 'react';
 import { Calculator, Map, TrendingUp, FileText, ArrowRight } from 'lucide-react';
+import { useRoutes } from '@/hooks/useRoutes';
+import { runSimulation, formatBRL, formatPercent } from '@/lib/pricing-engine';
 
 interface DashboardPageProps {
   onNavigate: (page: string) => void;
 }
 
 export function DashboardPage({ onNavigate }: DashboardPageProps) {
+  const { routes, loading } = useRoutes();
+
+  const stats = useMemo(() => {
+    if (routes.length === 0) return { count: 0, avgPrice: null, avgMargin: null };
+    const prices = routes.map(r => r.estimatedPrice).filter(p => p > 0);
+    const margins = routes
+      .map(r => {
+        const sim = runSimulation(r.fixedCosts, r.variableCosts, r.estimatedPrice, 10);
+        return sim.rows.length >= 10 ? sim.rows[9].margin : null;
+      })
+      .filter((m): m is number => m !== null && isFinite(m));
+    return {
+      count: routes.length,
+      avgPrice: prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : null,
+      avgMargin: margins.length > 0 ? margins.reduce((a, b) => a + b, 0) / margins.length : null,
+    };
+  }, [routes]);
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Welcome header */}
       <div className="relative overflow-hidden rounded-3xl gradient-brand p-5 sm:p-8 text-white">
         <div className="relative z-10">
           <h1 className="text-2xl sm:text-3xl font-extrabold mb-2">
-            Bem-vindo ao Precifica<span className="text-brand-orange-300">Tur</span>
+            Quanto cobrar pelo seu<br />
+            <span className="text-brand-orange-300">próximo roteiro?</span>
           </h1>
           <p className="text-white/70 max-w-lg text-sm leading-relaxed">
-            Precifique seus roteiros turísticos com precisão, simule cenários
-            e descubra o ponto de equilíbrio ideal para cada operação.
+            Calcule o preço ideal em minutos, informe seus custos,
+            defina sua margem e descubra exatamente quantos passageiros
+            você precisa para fechar no lucro!
           </p>
           <button
             onClick={() => onNavigate('calculator')}
@@ -24,7 +46,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                        flex items-center gap-2"
           >
             <Calculator size={18} />
-            Nova precificação
+            Calcular agora
             <ArrowRight size={16} />
           </button>
         </div>
@@ -85,18 +107,24 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         })}
       </div>
 
-      {/* Stats placeholder */}
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card text-center py-8">
-          <p className="text-4xl font-extrabold text-brand-navy">0</p>
+          <p className="text-4xl font-extrabold text-brand-navy">
+            {loading ? '…' : stats.count}
+          </p>
           <p className="text-sm text-surface-500 mt-1">Roteiros criados</p>
         </div>
         <div className="card text-center py-8">
-          <p className="text-4xl font-extrabold text-brand-orange">—</p>
+          <p className="text-4xl font-extrabold text-brand-orange">
+            {loading ? '…' : stats.avgPrice !== null ? formatBRL(stats.avgPrice) : '—'}
+          </p>
           <p className="text-sm text-surface-500 mt-1">Preço médio por pax</p>
         </div>
         <div className="card text-center py-8">
-          <p className="text-4xl font-extrabold text-emerald-600">—</p>
+          <p className="text-4xl font-extrabold text-emerald-600">
+            {loading ? '…' : stats.avgMargin !== null ? formatPercent(stats.avgMargin) : '—'}
+          </p>
           <p className="text-sm text-surface-500 mt-1">Margem média</p>
         </div>
       </div>

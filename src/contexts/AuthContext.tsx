@@ -30,16 +30,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false); // unblock render immediately
       if (session?.user) {
-        await fetchProfile(session.user.id);
+        fetchProfile(session.user.id); // load profile in background
       }
-      setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
         setProfile(null);
         setUser(null);
@@ -49,8 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setSession(session);
       setUser(session.user);
-      await fetchProfile(session.user.id);
       setLoading(false);
+      fetchProfile(session.user.id); // load profile in background
     });
 
     return () => subscription.unsubscribe();
