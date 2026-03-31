@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrecificaTur — Calculadora por Etapas</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--navy:#203478;--navy-light:#2a4299;--navy-50:#E8EAF5;--navy-800:#14204B;
+--blue:#557ABC;--blue-50:#EDF2F9;
+--orange:#EC6907;--orange-light:#F28B32;--orange-50:#FEF3E8;
+--gold:#FEC82F;--gold-50:#FFFAEA;
+--surface-50:#FFFFFF;--surface-100:#F8F9FC;--surface-200:#F0F2F7;
+--surface-300:#E4E7EF;--surface-400:#C8CDD9;--surface-500:#9BA3B5;
+--surface-600:#6B7489;--surface-700:#4A5168;--surface-800:#2D3348;
+--green:#10B981;--green-600:#059669;--green-50:#D1FAE5;
+--red:#EF4444;--red-50:#FEE2E2;
+}
+body{font-family:'Nunito',sans-serif;background:var(--surface-100);color:var(--surface-800);min-height:100vh}
+.wc{max-width:760px;margin:0 auto;padding:24px 16px;min-height:100vh;display:flex;flex-direction:column}
+.wh{text-align:center;margin-bottom:28px}
+.wlogo{display:inline-flex;align-items:center;gap:10px;margin-bottom:16px}
+.wlogo .ic{width:36px;height:36px;background:var(--orange);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px}
+.wlogo .nm{font-size:22px;font-weight:800;color:var(--navy)}
+.wlogo .nm span{color:var(--orange)}
+.pw{margin-bottom:28px}.ps{display:flex;align-items:flex-start;justify-content:center}
+.si{display:flex;flex-direction:column;align-items:center;z-index:1;flex:1}
+.sc{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;transition:all .4s cubic-bezier(.4,0,.2,1);border:2.5px solid var(--surface-300);background:var(--surface-50);color:var(--surface-500)}
+.si.active .sc{border-color:var(--orange);background:var(--orange);color:#fff;transform:scale(1.1)}
+.si.completed .sc{border-color:var(--green);background:var(--green);color:#fff}
+.sl{font-size:10px;font-weight:600;color:var(--surface-500);margin-top:5px;text-align:center;transition:color .3s}
+.si.active .sl{color:var(--navy);font-weight:700}
+.si.completed .sl{color:var(--green)}
+.scon{flex:1;height:3px;background:var(--surface-300);margin-top:19px;transition:background .4s}
+.scon.filled{background:var(--green)}
+.scont{flex:1}
+.scard{background:#fff;border-radius:20px;padding:28px 28px 24px;border:1px solid var(--surface-300);opacity:0;transform:translateY(16px);animation:si .45s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes si{to{opacity:1;transform:translateY(0)}}
+.st{font-size:21px;font-weight:800;color:var(--navy);margin-bottom:3px}
+.ss{font-size:13px;color:var(--surface-600);margin-bottom:22px;line-height:1.5}
+.tip{display:flex;gap:10px;padding:11px 14px;border-radius:11px;background:var(--gold-50);border:1px solid #FEE5A0;margin-bottom:16px}
+.tip .ti{font-size:15px;flex-shrink:0;margin-top:1px}
+.tip p{font-size:12px;color:#92600A;line-height:1.5}
+.tip.danger{background:var(--red-50);border-color:#FCA5A5}
+.tip.danger p{color:#991B1B}
+.tip.info{background:var(--blue-50);border-color:#B5D4F4}
+.tip.info p{color:#0C447C}
+.fg{margin-bottom:18px}
+.fl{display:block;font-size:12px;font-weight:700;color:var(--surface-700);margin-bottom:5px}
+.fh{font-size:11px;color:var(--surface-500);margin-top:3px}
+.fi{width:100%;padding:11px 14px;border:1.5px solid var(--surface-300);border-radius:11px;font-family:inherit;font-size:14px;font-weight:600;color:var(--surface-800);background:#fff;transition:all .2s;outline:none}
+.fi:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(85,122,188,.15)}
+.fi::placeholder{color:var(--surface-400);font-weight:400}
+.fi.big{font-size:26px;font-weight:800;color:var(--navy);text-align:center;padding:14px}
+.fsel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7489' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.cl{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+.ci{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:11px;background:var(--surface-100);transition:all .2s;animation:ii .3s ease-out forwards;opacity:0}
+@keyframes ii{to{opacity:1}}
+.ci:hover{background:var(--surface-200)}
+.ci .em{font-size:17px;flex-shrink:0}
+.ci .inf{flex:1;min-width:0}
+.ci .inf .ln{font-size:12px;font-weight:700;color:var(--surface-800)}
+.ci .vl{font-size:13px;font-weight:800;color:var(--navy);white-space:nowrap}
+.rb{width:26px;height:26px;border-radius:7px;border:none;background:transparent;color:var(--surface-400);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;font-size:15px}
+.rb:hover{background:var(--red-50);color:var(--red)}
+.ar{display:flex;gap:7px;align-items:end}
+.ar .fg{margin-bottom:0}
+.ab{width:42px;height:42px;border-radius:11px;border:none;background:var(--orange);color:#fff;font-size:19px;font-weight:700;cursor:pointer;transition:all .2s;flex-shrink:0}
+.ab:hover{background:var(--orange-light);transform:scale(1.05)}
+.vi{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--surface-200)}
+.vi:last-of-type{border-bottom:none}
+.vi .vl2{flex:1;font-size:13px;font-weight:600;color:var(--surface-700)}
+.vi .vs{width:110px;height:5px;border-radius:3px;appearance:none;background:var(--surface-300);outline:none;cursor:pointer}
+.vi .vs::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:var(--orange);cursor:pointer}
+.vi .vv{width:44px;text-align:right;font-size:13px;font-weight:800;color:var(--navy)}
+.vi .vu{font-size:11px;color:var(--surface-500);width:14px}
+.sd{display:flex;align-items:center;gap:9px;margin:18px 0 12px}
+.sd .ln{flex:1;height:1px;background:var(--surface-300)}
+.sd .lb{font-size:11px;font-weight:700;color:var(--surface-500);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.mt{display:flex;border-radius:12px;background:var(--surface-200);padding:3px;margin-bottom:22px}
+.mtb{flex:1;padding:10px;text-align:center;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;color:var(--surface-600);border:none;background:transparent;font-family:inherit}
+.mtb.active{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(32,52,120,.1)}
+.mtb:hover:not(.active){color:var(--surface-800)}
+.pp{margin-top:18px;padding:14px 18px;border-radius:13px;background:var(--navy-50);border:1px solid #C5C9E0;text-align:center}
+.pp .ppl{font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.pp .ppv{font-size:26px;font-weight:800;color:var(--navy)}
+.pp .ppd{font-size:11px;color:var(--surface-600);margin-top:3px}
+.tb{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:11px;background:var(--surface-100);margin-bottom:14px}
+.tb .tbl{font-size:12px;color:var(--surface-500)}
+.tb .tbv{font-size:15px;font-weight:800;color:var(--navy)}
+.wn{display:flex;justify-content:space-between;align-items:center;margin-top:22px;padding-top:18px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:11px 26px;border-radius:13px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;border:none}
+.btn-p{background:var(--orange);color:#fff}
+.btn-p:hover{background:#D05D06;transform:translateY(-1px)}
+.btn-s{background:transparent;color:var(--surface-600);border:2px solid var(--surface-300)}
+.btn-s:hover{border-color:var(--surface-500);color:var(--surface-800)}
+.btn-n{background:var(--navy);color:#fff}
+.btn-n:hover{background:var(--navy-light)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* ═══ RESULTS PAGE ═══ */
+.rg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px}
+.rc{padding:16px 12px;border-radius:14px;text-align:center;position:relative;overflow:hidden}
+.rc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.rc.green{background:var(--green-50);border:1px solid #A7F3D0}.rc.green::before{background:var(--green)}
+.rc.blue{background:var(--navy-50);border:1px solid #C5C9E0}.rc.blue::before{background:var(--navy)}
+.rc.orange{background:var(--orange-50);border:1px solid #FDDFC5}.rc.orange::before{background:var(--orange)}
+.rc .rl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.rc.green .rl{color:#065F46}.rc.blue .rl{color:var(--navy)}.rc.orange .rl{color:#9A3412}
+.rc .rv{font-size:22px;font-weight:800}
+.rc.green .rv{color:var(--green)}.rc.blue .rv{color:var(--navy)}.rc.orange .rv{color:var(--orange)}
+.rc .rd{font-size:10px;color:var(--surface-600);margin-top:2px}
+
+.chart-wrap{background:#fff;border-radius:16px;border:1px solid var(--surface-300);padding:20px;margin-bottom:18px}
+.chart-title{font-size:14px;font-weight:800;color:var(--navy);margin-bottom:14px}
+.chart-box{position:relative;height:280px}
+
+.insights{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.insight{padding:14px 16px;border-radius:13px;border-left:4px solid;background:var(--surface-50)}
+.insight.i-green{border-color:var(--green);background:var(--green-50)}
+.insight.i-orange{border-color:var(--orange);background:var(--orange-50)}
+.insight.i-blue{border-color:var(--navy);background:var(--navy-50)}
+.insight.i-red{border-color:var(--red);background:var(--red-50)}
+.insight .i-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px}
+.insight.i-green .i-title{color:#065F46}
+.insight.i-orange .i-title{color:#9A3412}
+.insight.i-blue .i-title{color:var(--navy)}
+.insight.i-red .i-title{color:#991B1B}
+.insight .i-value{font-size:18px;font-weight:800;color:var(--surface-800)}
+.insight .i-desc{font-size:11px;color:var(--surface-600);margin-top:2px;line-height:1.4}
+
+.stbl{width:100%;border-collapse:separate;border-spacing:0;border-radius:13px;overflow:hidden;border:1px solid var(--surface-300);margin-bottom:18px}
+.stbl th{background:var(--navy);color:#fff;font-size:11px;font-weight:700;padding:9px 10px;text-align:right}
+.stbl th:first-child{text-align:left}
+.stbl td{padding:8px 10px;font-size:12px;font-weight:600;text-align:right;border-bottom:1px solid var(--surface-200)}
+.stbl td:first-child{text-align:left}
+.stbl tr:last-child td{border-bottom:none}
+.stbl tr:nth-child(even){background:var(--surface-100)}
+.pos{color:var(--green)}.neg{color:var(--red)}
+.be-row{background:var(--green-50)!important}
+.beb{display:inline-block;font-size:9px;font-weight:700;background:var(--green);color:#fff;padding:2px 5px;border-radius:5px;margin-left:4px}
+.es{text-align:center;padding:28px 14px;color:var(--surface-400)}
+.es .ei{font-size:38px;margin-bottom:7px}
+.es p{font-size:12px}
+@media(max-width:600px){.fr,.rg,.insights{grid-template-columns:1fr}.ar{flex-wrap:wrap}.chart-box{height:220px}}
+</style>
+</head>
+<body>
+<div class="wc" id="app"></div>
+<script>
+const CATS={transfer:'Transfer / Transporte',hospedagem:'Hospedagem',alimentacao:'Alimentação',guia:'Guia local',ingresso:'Ingresso / Taxa',equipamento:'Equipamento',seguro:'Seguro',outro:'Outro'};
+const CEMOJI={transfer:'🚐',hospedagem:'🏨',alimentacao:'🍽️',guia:'🧭',ingresso:'🎫',equipamento:'🎒',seguro:'🛡️',outro:'📦'};
+const STEPS=[
+  {l:'Roteiro',t:'Sobre o roteiro',s:'Identifique seu roteiro com um nome. Cliente e data são opcionais.'},
+  {l:'Custos fixos',t:'Custos fixos do roteiro',s:'Custos que não mudam com a quantidade de passageiros.'},
+  {l:'Variáveis',t:'Custos variáveis',s:'Percentuais sobre o preço de venda. Ajuste ou adicione novos.'},
+  {l:'Preço',t:'Defina seu preço',s:'Escolha como quer precificar: pelo valor de venda ou pela margem de lucro.'},
+  {l:'Resultado',t:'Simulação completa',s:'Análise financeira detalhada do seu roteiro.'},
+];
+
+const S={step:0,routeName:'',client:'',date:'',fixedCosts:[],
+  varCosts:[{id:'admin',label:'Administrativo',value:10},{id:'comissao',label:'Comissão',value:10},{id:'encargos',label:'Encargos',value:12.5},{id:'taxas',label:'Taxas / Cartão',value:4}],
+  mode:'price',price:0,marginPct:0,marginPax:10,maxPax:50};
+
+let chartInstance=null;
+function uid(){return Math.random().toString(36).substr(2,7)}
+function fmt(v){return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function fmtP(v){return v.toFixed(1)+'%'}
+function tFixed(){return S.fixedCosts.reduce((s,c)=>s+c.value,0)}
+function tVar(){return S.varCosts.reduce((s,v)=>s+v.value,0)}
+
+function calcPriceFromMargin(marginPct,pax){
+  const tf=tFixed();const vp=tVar();
+  const factor=pax*(1-vp/100)*(1-marginPct/100);
+  if(factor<=0)return 0;
+  return tf/factor;
+}
+
+function getPrice(){
+  if(S.mode==='price')return S.price;
+  return calcPriceFromMargin(S.marginPct,S.marginPax);
+}
+
+function sim(){
+  const tf=tFixed(),vp=tVar(),price=getPrice();
+  const rows=[];let be=null;
+  for(let p=1;p<=S.maxPax;p++){
+    const va=price*(vp/100);const cpp=tf/p+va;const tc=cpp*p;
+    const rev=price*p;const res=rev-tc;const mg=rev>0?(res/rev)*100:0;
+    const ppax=p>0?res/p:0;
+    rows.push({pax:p,cpp,tc,rev,res,mg,ppax});
+    if(be===null&&res>=0)be=p;
+  }
+  return{rows,be,tf,vp};
+}
+
+function render(){
+  if(chartInstance){chartInstance.destroy();chartInstance=null;}
+  document.getElementById('app').innerHTML=`
+    <div class="wh"><div class="wlogo"><div class="ic">P</div><div class="nm">Precifica<span>Tur</span></div></div></div>
+    ${rProg()}
+    <div class="scont">${rStep()}</div>
+    ${rNav()}
+  `;
+  bind();
+  if(S.step===4)buildChart();
+}
+
+function rProg(){
+  let h='<div class="pw"><div class="ps">';
+  STEPS.forEach((s,i)=>{
+    const c=i<S.step?'completed':i===S.step?'active':'';
+    h+=`<div class="si ${c}"><div class="sc">${i<S.step?'✓':(i+1)}</div><div class="sl">${s.l}</div></div>`;
+    if(i<STEPS.length-1)h+=`<div class="scon ${i<S.step?'filled':''}"></div>`;
+  });
+  return h+'</div></div>';
+}
+
+function rStep(){
+  const s=STEPS[S.step];let c='';
+  switch(S.step){case 0:c=s0();break;case 1:c=s1();break;case 2:c=s2();break;case 3:c=s3();break;case 4:c=s4();break;}
+  return`<div class="scard" key="${S.step}"><h2 class="st">${s.t}</h2><p class="ss">${s.s}</p>${c}</div>`;
+}
+
+function s0(){
+  return`
+    <div class="fg"><label class="fl">Nome do roteiro *</label><input class="fi" id="rn" placeholder="Ex: City Tour Boa Vista" value="${S.routeName}"></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Cliente <span style="font-weight:400;color:var(--surface-400)">(opcional)</span></label><input class="fi" id="cl" placeholder="Ex: João Silva" value="${S.client}"></div>
+      <div class="fg"><label class="fl">Data <span style="font-weight:400;color:var(--surface-400)">(opcional)</span></label><input class="fi" id="dt" type="date" value="${S.date}"></div>
+    </div>
+    <div class="tip"><span class="ti">💡</span><p>O nome do roteiro aparecerá nos relatórios e na gestão de roteiros. Seja descritivo!</p></div>`;
+}
+
+function s1(){
+  const t=tFixed();
+  let list='';
+  if(!S.fixedCosts.length){list=`<div class="es"><div class="ei">📋</div><p>Nenhum custo fixo adicionado.<br>Selecione o tipo, informe o valor e adicione.</p></div>`;}
+  else{list='<div class="cl">'+S.fixedCosts.map((c,i)=>`<div class="ci" style="animation-delay:${i*40}ms"><span class="em">${CEMOJI[c.category]||'📦'}</span><div class="inf"><div class="ln">${CATS[c.category]}${c.label?' — '+c.label:''}</div></div><div class="vl">${fmt(c.value)}</div><button class="rb" data-rm="${c.id}">×</button></div>`).join('')+'</div>';}
+  return`${list}
+    <div class="tb"><span class="tbl">Total custos fixos:</span><span class="tbv">${fmt(t)}</span></div>
+    <div class="sd"><div class="ln"></div><div class="lb">Adicionar custo</div><div class="ln"></div></div>
+    <div class="fr" style="margin-bottom:10px">
+      <div class="fg" style="margin-bottom:0"><label class="fl">Tipo de custo</label><select class="fi fsel" id="nc">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
+      <div class="fg" style="margin-bottom:0"><label class="fl">Valor (R$)</label><input class="fi" id="nv" type="number" placeholder="0,00" style="text-align:right"></div>
+    </div>
+    <div class="ar"><div class="fg" style="flex:1"><label class="fl">Descrição <span style="font-weight:400;color:var(--surface-400)">(opcional)</span></label><input class="fi" id="nl" placeholder="Ex: Van para 15 pessoas"></div><button class="ab" id="acb">+</button></div>
+    <div class="tip" style="margin-top:14px"><span class="ti">💡</span><p>Custos fixos não mudam com a quantidade de passageiros: transfer, diárias, alimentação, guia local, ingressos.</p></div>`;
+}
+
+function s2(){
+  const tp=tVar();
+  return`
+    <div style="margin-bottom:16px">${S.varCosts.map(v=>`<div class="vi"><span class="vl2">${v.label}</span><input type="range" class="vs" min="0" max="30" step="0.5" value="${v.value}" data-vid="${v.id}"><span class="vv">${v.value}%</span><span class="vu">%</span><button class="rb" data-rvr="${v.id}" style="margin-left:2px">×</button></div>`).join('')}</div>
+    <div class="tb"><span class="tbl">Total sobre o preço:</span><span class="tbv">${fmtP(tp)}</span></div>
+    <div class="sd"><div class="ln"></div><div class="lb">Adicionar custo variável</div><div class="ln"></div></div>
+    <div class="ar"><div class="fg" style="flex:2"><input class="fi" id="nvl" placeholder="Ex: Comissão plataforma"></div><div class="fg" style="flex:1"><input class="fi" id="nvv" type="number" placeholder="%" style="text-align:right"></div><button class="ab" id="avb">+</button></div>
+    <div class="tip" style="margin-top:14px"><span class="ti">💡</span><p>Custos variáveis incidem sobre o preço de venda. Só existem quando há uma transação.</p></div>`;
+}
+
+function s3(){
+  const tf=tFixed(),vp=tVar(),price=getPrice();
+  const d=price>0?sim():null;
+
+  let preview='';
+  if(S.mode==='profit'&&S.marginPct>0){
+    preview=`<div class="pp"><div class="ppl">Preço calculado por passageiro</div><div class="ppv">${fmt(price)}</div><div class="ppd">Para ter ${fmtP(S.marginPct)} de margem com ${S.marginPax} passageiros</div></div>`;
+  }
+
+  let feedback='';
+  if(price>0&&d){
+    if(d.be){
+      feedback=`<div class="rg" style="margin-top:18px">
+        <div class="rc green"><div class="rl">Equilíbrio</div><div class="rv">${d.be} pax</div><div class="rd">mínimo sem prejuízo</div></div>
+        <div class="rc blue"><div class="rl">Custos fixos</div><div class="rv">${fmt(d.tf)}</div><div class="rd">do roteiro</div></div>
+        <div class="rc orange"><div class="rl">Margem 10 pax</div><div class="rv">${d.rows.length>=10?fmtP(d.rows[9].mg):'—'}</div><div class="rd">${d.rows.length>=10?fmt(d.rows[9].res):''}</div></div>
+      </div>`;
+    }else{
+      feedback=`<div class="tip danger" style="margin-top:18px"><span class="ti">⚠️</span><p>Com esse preço, não cobre os custos nem com ${S.maxPax} pax. Aumente o preço ou reduza custos.</p></div>`;
+    }
+  }
+
+  return`
+    <div class="mt"><button class="mtb ${S.mode==='price'?'active':''}" data-md="price">Definir preço de venda</button><button class="mtb ${S.mode==='profit'?'active':''}" data-md="profit">Definir margem de lucro</button></div>
+    ${S.mode==='price'?`
+      <div class="fg" style="text-align:center"><label class="fl" style="text-align:center;font-size:13px">Preço por passageiro (R$)</label><input class="fi big" id="pi" type="number" placeholder="0" value="${S.price||''}"><p class="fh" style="text-align:center">Quanto o cliente vai pagar por pessoa</p></div>
+      ${tf>0&&!S.price?`<div class="tip"><span class="ti">🧮</span><p>Seus custos fixos somam <strong>${fmt(tf)}</strong> e os variáveis totalizam <strong>${fmtP(vp)}</strong>. Defina um valor que cubra esses custos.</p></div>`:''}
+    `:`
+      <div class="fr" style="margin-bottom:0">
+        <div class="fg" style="text-align:center"><label class="fl" style="text-align:center;font-size:13px">Margem de lucro desejada (%)</label><input class="fi big" id="mi" type="number" placeholder="0" value="${S.marginPct||''}" style="font-size:24px"><p class="fh" style="text-align:center">Percentual de lucro sobre a receita</p></div>
+        <div class="fg" style="text-align:center"><label class="fl" style="text-align:center;font-size:13px">Com quantos passageiros?</label><input class="fi big" id="mp" type="number" placeholder="10" value="${S.marginPax||''}" style="font-size:24px"><p class="fh" style="text-align:center">Quantidade esperada de pax</p></div>
+      </div>
+      ${preview}
+      ${tf>0&&!S.marginPct?`<div class="tip"><span class="ti">🧮</span><p>Informe a margem de lucro desejada (ex: 25%) e com quantos pax espera operar. A plataforma calcula o preço ideal.</p></div>`:''}
+    `}
+    ${feedback}
+    <div class="fg" style="margin-top:14px"><label class="fl">Simular até quantos passageiros?</label><input class="fi" id="mx" type="number" min="5" max="210" value="${S.maxPax}"></div>`;
+}
+
+function s4(){
+  const d=sim();const price=getPrice();
+  const kp=[1,5,10,15,20,30,50].filter(n=>n<=S.maxPax);
+  if(d.be&&!kp.includes(d.be)){kp.push(d.be);kp.sort((a,b)=>a-b);}
+
+  const modeDesc=S.mode==='profit'
+    ?`Preço calculado: ${fmt(price)} (margem ${fmtP(S.marginPct)} com ${S.marginPax} pax)`
+    :`Preço definido: ${fmt(price)} por passageiro`;
+
+  // Insights
+  const bestMarginRow=d.rows[d.rows.length-1];
+  const at10=d.rows.length>=10?d.rows[9]:null;
+  const at20=d.rows.length>=20?d.rows[19]:null;
+  const costPerPaxAt1=d.rows[0];
+
+  let insightsHtml='<div class="insights">';
+
+  if(d.be){
+    insightsHtml+=`<div class="insight i-green"><div class="i-title">Ponto de equilíbrio</div><div class="i-value">${d.be} passageiros</div><div class="i-desc">A partir de ${d.be} pax você começa a lucrar</div></div>`;
+  }else{
+    insightsHtml+=`<div class="insight i-red"><div class="i-title">Atenção</div><div class="i-value">Sem equilíbrio</div><div class="i-desc">O preço não cobre os custos nessa faixa</div></div>`;
+  }
+
+  if(at10){
+    insightsHtml+=`<div class="insight ${at10.res>=0?'i-blue':'i-red'}"><div class="i-title">Com 10 passageiros</div><div class="i-value">${fmt(at10.res)}</div><div class="i-desc">Margem de ${fmtP(at10.mg)} — ${at10.res>=0?'lucrativo':'prejuízo'}</div></div>`;
+  }
+
+  const fixedPerPaxAt10=at10?d.tf/10:0;
+  const varAmount=price*(d.vp/100);
+  insightsHtml+=`<div class="insight i-orange"><div class="i-title">Composição do custo (10 pax)</div><div class="i-value">${at10?fmt(at10.cpp):fmt(costPerPaxAt1.cpp)}/pax</div><div class="i-desc">Fixo: ${fmt(fixedPerPaxAt10)} + Variável: ${fmt(varAmount)}</div></div>`;
+
+  if(at20&&at10){
+    const gain=at20.res-at10.res;
+    insightsHtml+=`<div class="insight i-blue"><div class="i-title">Efeito escala (10→20 pax)</div><div class="i-value">+${fmt(gain)}</div><div class="i-desc">O lucro ${gain>0?'cresce':'cai'} ${fmt(Math.abs(gain))} ao dobrar os passageiros</div></div>`;
+  }else{
+    insightsHtml+=`<div class="insight i-blue"><div class="i-title">Custo com 1 pax</div><div class="i-value">${fmt(costPerPaxAt1.cpp)}</div><div class="i-desc">Custo máximo — todo o fixo recai sobre 1 pessoa</div></div>`;
+  }
+  insightsHtml+='</div>';
+
+  return`
+    <div style="font-size:12px;color:var(--surface-600);margin-bottom:14px;padding:7px 12px;border-radius:8px;background:var(--surface-100)">${modeDesc}</div>
+    ${insightsHtml}
+    <div class="chart-wrap"><div class="chart-title">Receita vs Custo (1 a ${S.maxPax} passageiros)</div><div class="chart-box"><canvas id="simChart"></canvas></div></div>
+    <div class="chart-wrap"><div class="chart-title">Cenários-chave</div>
+    <table class="stbl">
+      <thead><tr><th>Pax</th><th>Custo/pax</th><th>Custo total</th><th>Receita</th><th>Resultado</th><th>Margem</th></tr></thead>
+      <tbody>${kp.map(p=>{const r=d.rows[p-1];if(!r)return'';const be=p===d.be;const ps=r.res>=0;return`
+        <tr class="${be?'be-row':''}"><td>${r.pax}${be?'<span class="beb">equilíbrio</span>':''}</td><td>${fmt(r.cpp)}</td><td>${fmt(r.tc)}</td><td>${fmt(r.rev)}</td><td class="${ps?'pos':'neg'}">${fmt(r.res)}</td><td class="${ps?'pos':'neg'}">${fmtP(r.mg)}</td></tr>`;}).join('')}</tbody>
+    </table></div>
+    <div class="tip info"><span class="ti">📊</span><p><strong>${S.routeName||'Roteiro'}</strong> — ${d.be?`Ponto de equilíbrio em <strong>${d.be} passageiros</strong>. Acima disso, cada passageiro adicional gera aproximadamente <strong>${d.be&&d.rows[d.be]?fmt(d.rows[d.be].ppax):'—'}</strong> de lucro.`:'Revise custos ou preço — não há ponto de equilíbrio nessa faixa.'}</p></div>`;
+}
+
+function buildChart(){
+  const cv=document.getElementById('simChart');
+  if(!cv)return;
+  const d=sim();const price=getPrice();
+  const labels=d.rows.map(r=>r.pax);
+  const rev=d.rows.map(r=>r.rev);
+  const cost=d.rows.map(r=>r.tc);
+  const result=d.rows.map(r=>r.res);
+
+  chartInstance=new Chart(cv,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {label:'Receita',data:rev,borderColor:'#203478',backgroundColor:'rgba(32,52,120,.08)',fill:true,borderWidth:2.5,pointRadius:0,pointHoverRadius:5,tension:.3},
+        {label:'Custo total',data:cost,borderColor:'#EC6907',backgroundColor:'rgba(236,105,7,.08)',fill:true,borderWidth:2.5,pointRadius:0,pointHoverRadius:5,tension:.3},
+        {label:'Resultado',data:result,borderColor:'#10B981',backgroundColor:'rgba(16,185,129,.06)',fill:true,borderWidth:2,pointRadius:0,pointHoverRadius:5,tension:.3,borderDash:[4,3]},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{intersect:false,mode:'index'},
+      plugins:{
+        legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',padding:16,font:{family:'Nunito',size:12,weight:'600'}}},
+        tooltip:{
+          backgroundColor:'#fff',titleColor:'#2D3348',bodyColor:'#4A5168',borderColor:'#E4E7EF',borderWidth:1,
+          padding:12,cornerRadius:12,titleFont:{family:'Nunito',size:13,weight:'700'},bodyFont:{family:'Nunito',size:12},
+          callbacks:{
+            title:ctx=>`${ctx[0].label} passageiros`,
+            label:ctx=>{
+              const v=ctx.raw;
+              return` ${ctx.dataset.label}: ${fmt(v)}`;
+            }
+          }
+        },
+        annotation:d.be?{annotations:{breakEven:{type:'line',xMin:d.be-1,xMax:d.be-1,borderColor:'#10B981',borderWidth:2,borderDash:[5,3],label:{display:true,content:`Equilíbrio: ${d.be} pax`,position:'start',backgroundColor:'#10B981',color:'#fff',font:{size:11,weight:'700',family:'Nunito'},padding:4,borderRadius:6}}}}:{}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{font:{family:'Nunito',size:11},color:'#9BA3B5',maxTicksLimit:12},title:{display:true,text:'Passageiros',font:{family:'Nunito',size:12,weight:'600'},color:'#6B7489'}},
+        y:{grid:{color:'#F0F2F7'},ticks:{font:{family:'Nunito',size:11},color:'#9BA3B5',callback:v=>'R$'+(v/1000).toFixed(0)+'k'},title:{display:true,text:'Valor (R$)',font:{family:'Nunito',size:12,weight:'600'},color:'#6B7489'}}
+      }
+    }
+  });
+}
+
+function rNav(){
+  const f=S.step===0,l=S.step===STEPS.length-1;
+  return`<div class="wn">${f?'<div></div>':`<button class="btn btn-s" id="pb">← Voltar</button>`}${l?`<button class="btn btn-n" id="sb">💾 Salvar roteiro</button>`:`<button class="btn btn-p" id="nb" ${val()?'':'disabled'}>Próximo →</button>`}</div>`;
+}
+
+function val(){
+  if(S.step===0)return S.routeName.trim().length>0;
+  if(S.step===3){if(S.mode==='price')return S.price>0;return S.marginPct>0&&S.marginPax>0;}
+  return true;
+}
+
+function bind(){
+  const $=id=>document.getElementById(id);
+  $('pb')?.addEventListener('click',()=>{S.step--;render()});
+  $('nb')?.addEventListener('click',()=>{if(S.step===3&&S.mode==='profit')S.price=getPrice();S.step++;render()});
+  $('sb')?.addEventListener('click',()=>alert('Roteiro salvo! (integração Supabase pendente)'));
+  $('rn')?.addEventListener('input',e=>{S.routeName=e.target.value;const n=$('nb');if(n)n.disabled=!val()});
+  $('cl')?.addEventListener('input',e=>{S.client=e.target.value});
+  $('dt')?.addEventListener('input',e=>{S.date=e.target.value});
+  $('acb')?.addEventListener('click',()=>{const c=$('nc')?.value,v=parseFloat($('nv')?.value),l=$('nl')?.value?.trim()||'';if(!v||isNaN(v))return;S.fixedCosts.push({id:uid(),label:l,value:v,category:c});render()});
+  document.querySelectorAll('[data-rm]').forEach(b=>b.addEventListener('click',()=>{S.fixedCosts=S.fixedCosts.filter(c=>c.id!==b.dataset.rm);render()}));
+  document.querySelectorAll('.vs').forEach(s=>s.addEventListener('input',e=>{const v=S.varCosts.find(c=>c.id===e.target.dataset.vid);if(v){v.value=parseFloat(e.target.value);render()}}));
+  document.querySelectorAll('[data-rvr]').forEach(b=>b.addEventListener('click',()=>{S.varCosts=S.varCosts.filter(c=>c.id!==b.dataset.rvr);render()}));
+  $('avb')?.addEventListener('click',()=>{const l=$('nvl')?.value?.trim(),v=parseFloat($('nvv')?.value);if(!l||isNaN(v))return;S.varCosts.push({id:uid(),label:l,value:v});render()});
+  document.querySelectorAll('.mtb').forEach(t=>t.addEventListener('click',()=>{S.mode=t.dataset.md;render()}));
+  $('pi')?.addEventListener('input',e=>{S.price=parseFloat(e.target.value)||0;render()});
+  $('mi')?.addEventListener('input',e=>{S.marginPct=parseFloat(e.target.value)||0;render()});
+  $('mp')?.addEventListener('input',e=>{S.marginPax=parseInt(e.target.value)||10;render()});
+  $('mx')?.addEventListener('input',e=>{S.maxPax=parseInt(e.target.value)||50});
+}
+
+render();
+</script>
+</body>
+</html>
