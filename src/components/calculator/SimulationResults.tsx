@@ -39,27 +39,6 @@ function calcRowForPax(
   return { pax, costPerPax, totalCost, estimatedPrice, revenue, partialResult: finalResult, discounts: 0, finalResult, margin };
 }
 
-function buildScenariosForKnownBreakEven(breakEven: number, simulatedPax: number): number[] {
-  const candidates = [
-    Math.max(1, breakEven - 5),
-    breakEven,
-    simulatedPax,
-    breakEven + 5,
-    breakEven + 15,
-  ];
-  return [...new Set(candidates)].sort((a, b) => a - b).slice(0, 5);
-}
-
-function buildScenariosForNullBreakEven(simulatedPax: number): number[] {
-  const candidates = [
-    Math.max(1, simulatedPax - 10),
-    Math.max(1, simulatedPax - 5),
-    simulatedPax,
-    simulatedPax + 5,
-    simulatedPax + 15,
-  ];
-  return [...new Set(candidates)].sort((a, b) => a - b).slice(0, 5);
-}
 
 /* ── Sub-components ──────────────────────────────────────────────────────── */
 
@@ -579,10 +558,8 @@ export function SimulationResults({
   const scenarioPaxList = useMemo(
     () => isExplorationMode
       ? simulation.rows.map(r => r.pax)
-      : breakEvenPax !== null
-        ? buildScenariosForKnownBreakEven(breakEvenPax, row.pax)
-        : buildScenariosForNullBreakEven(row.pax),
-    [isExplorationMode, simulation.rows, breakEvenPax, row.pax]
+      : Array.from({ length: row.pax }, (_, i) => i + 1),
+    [isExplorationMode, simulation.rows, row.pax]
   );
 
   const statusBadge = isBreakEven
