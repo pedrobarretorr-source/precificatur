@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Save, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Save, Check } from 'lucide-react';
 import { SimulationResults } from '@/components/calculator/SimulationResults';
 import {
   runSimulation,
@@ -40,6 +40,16 @@ const CATEGORY_EMOJI: Record<CostCategory, string> = {
   seguro: '🛡️',
   outro: '📦',
 };
+
+// Group preset fixed costs by category for the dropdown menu
+const GROUPED_PRESETS = (() => {
+  const map = new Map<CostCategory, (typeof PRESET_FIXED_COSTS)[number][]>();
+  for (const p of PRESET_FIXED_COSTS) {
+    if (!map.has(p.category)) map.set(p.category, []);
+    map.get(p.category)!.push(p);
+  }
+  return Array.from(map.entries()).map(([category, items]) => ({ category, items }));
+})();
 
 const STEPS = [
   { label: 'Roteiro', title: 'Sobre o roteiro', sub: 'Identifique seu roteiro com um nome. Cliente e data são opcionais.' },
@@ -83,6 +93,10 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
   const [newCat, setNewCat] = useState<CostCategory>('transfer');
   const [newVal, setNewVal] = useState('');
   const [newLbl, setNewLbl] = useState('');
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const valInputRef = useRef<HTMLInputElement>(null);
+  const lblInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Step 2 — Variable costs
   const [varCosts, setVarCosts] = useState<VariableCost[]>(
@@ -101,8 +115,10 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
   const [marginPct, setMarginPct] = useState(0);
 
   const [simulationPax, setSimulationPax] = useState(initialRoute?.simulationPax ?? 0);
-  const [isExplorationMode, setIsExplorationMode] = useState(initialRoute?.isExplorationMode ?? false);
-  const [maxPax, setMaxPax] = useState(initialRoute?.maxPax ?? 30);
+  const [maxPax, setMaxPax] = useState(
+    initialRoute?.isExplorationMode ? (initialRoute.maxPax ?? 0) : 0
+  );
+  const isExplorationMode = maxPax > simulationPax && simulationPax >= 1;
 
   // Persistence — use existing id if editing, new id if creating
   const [routeId] = useState<string>(() => initialRoute?.id ?? crypto.randomUUID());
@@ -130,6 +146,16 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
     () => findBreakEven(fixedCosts, varCosts, effectivePrice),
     [fixedCosts, varCosts, effectivePrice],
   );
+
+  // Close suggestions dropdown when clicking outside
+  useEffect(() => {
+    if (!suggestionsOpen) return;
+    function handler(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setSuggestionsOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [suggestionsOpen]);
 
   // ── Persistence ──
   function buildCurrentRoute() {
@@ -328,56 +354,68 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
 
             <div>
               <label className="input-label">Quantidade de passageiros *</label>
-              <input
-                className="input w-full sm:max-w-[180px]"
-                type="number"
-                min={1}
-                max={100}
-                placeholder="Ex: 15"
-                value={simulationPax || ''}
-                onChange={e => {
-                  const v = Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0));
-                  setSimulationPax(v);
-                  if (isExplorationMode && v >= maxPax) setMaxPax(Math.min(100, v + 1));
-                }}
-              />
-              <p className="input-hint">Quantos passageiros você espera neste roteiro?</p>
-              {/* Range simulation toggle */}
-              <div className="space-y-3 pt-1">
-                <label className={cn(
-                  'flex items-center gap-3 cursor-pointer select-none',
-                  (simulationPax < 1 || simulationPax >= 100) && 'opacity-50 pointer-events-none'
-                )}>
+
+              <div className="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3">
+                {/* Mínimo — obrigatório */}
+                <div className="flex flex-col items-center">
                   <input
-                    type="checkbox"
-                    checked={isExplorationMode}
-                    disabled={simulationPax < 1 || simulationPax >= 100}
-                    onChange={e => setIsExplorationMode(e.target.checked)}
-                    className="w-4 h-4 rounded accent-brand-orange"
+                    className="input w-full sm:w-32 text-center text-2xl font-extrabold text-brand-navy py-3"
+                    type="number"
+                    min={1}
+                    max={100}
+                    placeholder="15"
+                    value={simulationPax || ''}
+                    onChange={e => {
+                      const v = Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0));
+                      setSimulationPax(v);
+                    }}
                   />
-                  <span className="text-sm font-semibold text-surface-700">
-                    Simular faixa de comparação
+                  <span className="text-[10px] font-bold text-surface-500 uppercase tracking-wider mt-1">
+                    passageiros
                   </span>
-                </label>
-                {isExplorationMode && (
-                  <div>
-                    <label className="input-label">Simular até quantos passageiros? (máx. 100)</label>
-                    <input
-                      className="input w-full sm:max-w-[180px]"
-                      type="number"
-                      min={Math.max(simulationPax + 1, 2)}
-                      max={100}
-                      placeholder="Ex: 30"
-                      value={maxPax || ''}
-                      onChange={e => {
-                        const v = Math.min(100, Math.max(simulationPax + 1, parseInt(e.target.value, 10) || simulationPax + 1));
-                        setMaxPax(v);
-                      }}
-                    />
-                    <p className="input-hint">A tabela mostrará cenários de 1 até este número.</p>
-                  </div>
-                )}
+                </div>
+
+                {/* Conector "até" */}
+                <span className="text-sm font-bold text-surface-400 self-center sm:pb-8 sm:px-1">
+                  até
+                </span>
+
+                {/* Máximo — opcional, ghost quando vazio */}
+                <div className="flex flex-col items-center">
+                  <input
+                    className={cn(
+                      'w-full sm:w-32 text-center text-2xl font-extrabold text-brand-navy py-3 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue',
+                      simulationPax < 1 && 'opacity-50 pointer-events-none',
+                      maxPax > 0
+                        ? 'border border-surface-300 bg-white placeholder:text-surface-500 placeholder:font-normal'
+                        : 'border border-dashed border-surface-300 bg-surface-50 placeholder:text-surface-400 placeholder:font-normal'
+                    )}
+                    type="number"
+                    min={simulationPax + 1}
+                    max={100}
+                    placeholder={simulationPax < 1 ? 'preencha o mínimo' : 'comparar até…'}
+                    disabled={simulationPax < 1}
+                    value={maxPax || ''}
+                    onChange={e => {
+                      const v = Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0));
+                      setMaxPax(v);
+                    }}
+                  />
+                  <span className="text-[10px] font-bold text-surface-400 uppercase tracking-wider mt-1">
+                    (opcional)
+                  </span>
+                </div>
               </div>
+
+              <p className="input-hint mt-3">
+                Informe até quantos passageiros para comparar cenários lado a lado e ver como o preço e o lucro mudam conforme o grupo cresce.
+              </p>
+
+              {maxPax > 0 && maxPax <= simulationPax && (
+                <p className="text-xs text-red-500 mt-1">
+                  O máximo precisa ser maior que o mínimo.
+                </p>
+              )}
             </div>
 
             <div>
@@ -401,14 +439,138 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
 
         {/* ───── STEP 1 — Custos fixos ───── */}
         {step === 1 && (
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* ── Selection area (top) ── */}
+
+            {/* Dropdown selector */}
+            <div ref={dropdownRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setSuggestionsOpen(o => !o)}
+                className={cn(
+                  'w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-left transition-all duration-200',
+                  newLbl
+                    ? 'border-brand-orange bg-brand-orange-50'
+                    : 'border-surface-300 bg-white hover:border-surface-400',
+                )}
+              >
+                <span className="flex items-center gap-2.5">
+                  {newLbl ? (
+                    <>
+                      <span className="text-lg">{CATEGORY_EMOJI[newCat]}</span>
+                      <span className="text-sm font-bold text-surface-800">{newLbl}</span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-surface-400">Selecione o tipo de custo...</span>
+                  )}
+                </span>
+                <ChevronDown
+                  size={18}
+                  className={cn(
+                    'text-surface-400 transition-transform duration-200',
+                    suggestionsOpen && 'rotate-180',
+                  )}
+                />
+              </button>
+
+              {/* Expanded suggestions panel */}
+              {suggestionsOpen && (
+                <div className="absolute z-30 left-0 right-0 mt-1 rounded-xl border border-surface-200 bg-white shadow-lg overflow-hidden animate-slide-up">
+                  <div className="max-h-64 overflow-y-auto">
+                    {GROUPED_PRESETS.map(group => (
+                      <div key={group.category}>
+                        <div className="sticky top-0 px-3 py-1.5 bg-surface-50 border-b border-surface-100">
+                          <span className="text-[10px] font-bold text-surface-400 uppercase tracking-wider">
+                            {CATEGORY_EMOJI[group.category]} {COST_CATEGORY_LABELS[group.category]}
+                          </span>
+                        </div>
+                        {group.items.map(p => {
+                          const alreadyAdded = fixedCosts.some(c => c.label === p.label);
+                          return (
+                            <button
+                              key={p.label}
+                              type="button"
+                              disabled={alreadyAdded}
+                              onClick={() => {
+                                applyFixedSuggestion(p.label, p.category);
+                                setSuggestionsOpen(false);
+                                setTimeout(() => valInputRef.current?.focus(), 50);
+                              }}
+                              className={cn(
+                                'w-full text-left px-4 py-2.5 text-sm transition-colors',
+                                alreadyAdded
+                                  ? 'text-surface-300 cursor-default bg-surface-50'
+                                  : 'text-surface-700 hover:bg-brand-orange-50 font-medium cursor-pointer',
+                              )}
+                            >
+                              <span className="flex items-center justify-between">
+                                <span>{p.label}</span>
+                                {alreadyAdded && <Check size={14} className="text-emerald-400" />}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
+                    {/* Outro */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewCat('outro');
+                        setNewLbl('');
+                        setSuggestionsOpen(false);
+                        setTimeout(() => lblInputRef.current?.focus(), 50);
+                      }}
+                      className="w-full text-left px-4 py-3 text-sm font-bold text-surface-500 hover:bg-surface-100 border-t border-surface-200 transition-colors"
+                    >
+                      📦 + Outro (digitar nome)
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Input row */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+              {/* Description — visible when no preset selected (custom / "Outro") */}
+              {!PRESET_FIXED_COSTS.some(p => p.label === newLbl) && (
+                <div className="flex-[2]">
+                  <label className="input-label">Descrição</label>
+                  <input
+                    ref={lblInputRef}
+                    className="input"
+                    placeholder="Ex: Passeio de barco"
+                    value={newLbl}
+                    onChange={e => setNewLbl(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') valInputRef.current?.focus();
+                    }}
+                  />
+                </div>
+              )}
+              <div className="flex gap-2 items-end flex-1">
+                <div className="flex-1">
+                  <label className="input-label">Valor (R$)</label>
+                  <input
+                    ref={valInputRef}
+                    className="input text-right"
+                    type="number"
+                    placeholder="0,00"
+                    value={newVal}
+                    onChange={e => setNewVal(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addFixedCost()}
+                  />
+                </div>
+                <AddBtn onClick={addFixedCost} />
+              </div>
+            </div>
+
+            {/* ── Results area (bottom) ── */}
+            <Divider label={`Custos adicionados${fixedCosts.length > 0 ? ` (${fixedCosts.length})` : ''}`} />
+
             {fixedCosts.length === 0 ? (
-              <div className="text-center py-8 text-surface-400">
-                <div className="text-4xl mb-2">📋</div>
-                <p className="text-sm">
-                  Nenhum custo fixo adicionado.<br />
-                  Selecione o tipo, informe o valor e adicione.
-                </p>
+              <div className="text-center py-5 text-surface-400">
+                <p className="text-sm">Nenhum custo fixo adicionado ainda.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -417,8 +579,7 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
                     <span className="text-lg">{CATEGORY_EMOJI[c.category]}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-surface-800 truncate">
-                        {COST_CATEGORY_LABELS[c.category]}
-                        {c.label ? ` — ${c.label}` : ''}
+                        {c.label || COST_CATEGORY_LABELS[c.category]}
                       </p>
                     </div>
                     <span className="text-sm font-bold text-brand-navy whitespace-nowrap">
@@ -431,79 +592,6 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
             )}
 
             <TotalRow label="Total custos fixos:" value={formatBRL(totalFixed)} />
-
-            <Divider label="Sugestões" />
-
-            {/* Chips sempre visíveis */}
-            <div className="rounded-xl bg-surface-50 border border-surface-200 p-4">
-              <div className="flex flex-wrap gap-2">
-                {PRESET_FIXED_COSTS.map(p => {
-                  const alreadyAdded = fixedCosts.some(c => c.label === p.label);
-                  const isSelected = newLbl === p.label && newCat === p.category;
-                  return (
-                    <button
-                      key={p.label}
-                      type="button"
-                      disabled={alreadyAdded}
-                      onClick={() => applyFixedSuggestion(p.label, p.category)}
-                      className={cn(
-                        'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-150',
-                        alreadyAdded
-                          ? 'bg-emerald-50 text-emerald-400 cursor-default line-through'
-                          : isSelected
-                            ? 'bg-brand-orange text-white border border-brand-orange'
-                            : 'bg-white border border-surface-300 text-surface-600 hover:bg-brand-orange-50 hover:border-brand-orange-200 hover:text-brand-orange-700'
-                      )}
-                    >
-                      {p.label}
-                    </button>
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={() => { setNewCat('outro'); setNewLbl(''); }}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-150 border',
-                    newCat === 'outro' && newLbl === ''
-                      ? 'bg-surface-700 text-white border-surface-700'
-                      : 'bg-surface-200 border-surface-300 text-surface-500 hover:bg-surface-300 hover:text-surface-700'
-                  )}
-                >
-                  + Outro
-                </button>
-              </div>
-            </div>
-
-            <Divider label="Adicionar custo" />
-
-            <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
-              <div className="flex-[2]">
-                <label className="input-label">
-                  Descrição <span className="font-normal text-surface-400">(opcional)</span>
-                </label>
-                <input
-                  className="input"
-                  placeholder="Ex: Van para 15 pessoas"
-                  value={newLbl}
-                  onChange={e => setNewLbl(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addFixedCost()}
-                />
-              </div>
-              <div className="flex gap-2 items-end">
-                <div className="flex-1 sm:w-28">
-                  <label className="input-label">Valor (R$)</label>
-                  <input
-                    className="input text-right"
-                    type="number"
-                    placeholder="0,00"
-                    value={newVal}
-                    onChange={e => setNewVal(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && addFixedCost()}
-                  />
-                </div>
-                <AddBtn onClick={addFixedCost} />
-              </div>
-            </div>
 
             <Tip>
               Custos fixos não dependem do número de pessoas, eles existem desde a primeira vaga.
