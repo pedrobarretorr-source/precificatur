@@ -67,14 +67,17 @@ Quantidade de passageiros *
 ### Input 2 — Máximo (opcional, estado "ghost" até ativar)
 
 - Input numérico, `min={simulationPax + 1}`, `max=100`, placeholder `comparar até…`.
-- **Estado "ghost" (valor vazio)**:
+- **Estado "ghost" (`maxPax === 0`)**:
   - `bg-surface-50`, `border-dashed`, `border-surface-300`.
   - Texto do placeholder em `text-surface-400`.
   - Sub-rótulo: `(opcional)` em `text-xs text-surface-400`.
-- **Estado "ativo" (usuário começou a digitar)**:
+- **Estado "ativo" (`maxPax > 0`)**:
   - Aplica estilos do `.input` padrão (`border-solid`, `border-surface-300`, fundo branco).
   - No foco, `ring-brand-blue/30` + `border-brand-blue` (igual ao mínimo).
-- Disabled enquanto `simulationPax < 1` (usa `opacity-50` + `pointer-events-none`; placeholder passa a `preencha o mínimo primeiro`).
+  - O gatilho é o valor (`maxPax > 0`), não keystroke: se o usuário apagar o campo, o input volta ao ghost.
+- Disabled enquanto `simulationPax < 1`:
+  - Atributo HTML `disabled` (para acessibilidade / leitores de tela) **e** `opacity-50` + `pointer-events-none` visualmente.
+  - Placeholder passa a `preencha o mínimo primeiro`.
 - Largura ~160px desktop; `flex-1` mobile.
 
 ### Hint explicativo (sempre visível, abaixo dos dois inputs)
@@ -86,7 +89,8 @@ Usar classe `.input-hint` (já existe no design system).
 ### Validação inline
 
 - Se `maxPax > 0 && maxPax <= simulationPax`: mostrar hint vermelho abaixo do input máximo: *"O máximo precisa ser maior que o mínimo"* (`text-xs text-red-500`).
-  - Nesse estado, **não** atualiza `maxPax` efetivo para simulação; `isExplorationMode` continua `false` até correção. O botão "Próximo" não bloqueia por isso (só o mínimo é gate de avanço), mas o usuário vê o erro e deve corrigir.
+  - Isso inclui o caso **`maxPax === simulationPax`** (igualdade conta como inválido, não como "sem comparação").
+  - Nesse estado, `isExplorationMode` continua `false` (pela derivação `maxPax > simulationPax`) e a simulação roda só com o mínimo. O botão "Próximo" não bloqueia por isso (só o mínimo é gate de avanço), mas o usuário vê o erro e deve corrigir.
 - Se `maxPax > 100`: clamp a 100 (comportamento atual).
 
 ---
@@ -127,6 +131,10 @@ const isExplorationMode = maxPax > simulationPax && simulationPax >= 1;
 - `SimulationResults`, `pricing-engine`, tipos `Route`, persistência.
 - Outros steps do wizard.
 - Lógica do step 3 (margem) que usa `simulationPax`.
+
+### Comportamento do auto-nudge do `maxPax` — **descartado**
+
+O código atual em [CalculatorPage.tsx:341](src/pages/CalculatorPage.tsx#L341) auto-incrementa `maxPax` quando o usuário sobe `simulationPax` e ele chega/passa do `maxPax` atual (`if (isExplorationMode && v >= maxPax) setMaxPax(Math.min(100, v + 1))`). Esse comportamento **não é preservado** no novo design: se o usuário subir o mínimo até ficar `>=` ao máximo, a validação inline vermelha aparece e o usuário decide (ajustar manualmente o máximo ou apagar o campo para voltar ao ghost). Isso é mais previsível e evita edições implícitas do input secundário.
 
 ---
 
