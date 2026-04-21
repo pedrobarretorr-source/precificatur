@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send } from 'lucide-react';
+import { Send, AlertCircle, Bot } from 'lucide-react';
 import { cn, generateId } from '@/lib/utils';
+import { chatWithMiniMax, isAiConfigured } from '@/lib/ai-service';
 
 // ── Types ──
 
@@ -11,7 +12,7 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-// ── Mocked Data ──
+// ── Mocked Data (fallback quando API não está configurada) ──
 
 const SUGGESTIONS = [
   'Como funciona a calculadora?',
@@ -40,7 +41,7 @@ const RESPONSE_MAP: Record<string, string> = {
 const FALLBACK_RESPONSE =
   'Essa é uma ótima pergunta! Em breve terei acesso ao banco de dados completo para te ajudar melhor. Por enquanto, experimente as sugestões acima.';
 
-function getResponse(question: string): string {
+function getMockResponse(question: string): string {
   return RESPONSE_MAP[question] ?? FALLBACK_RESPONSE;
 }
 
@@ -108,13 +109,16 @@ export function AiAssistantPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const aiConfigured = isAiConfigured();
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  function sendMessage(text: string) {
+  async function sendMessage(text: string) {
     if (!text.trim()) return;
 
     const userMsg: ChatMessage = {
@@ -126,17 +130,45 @@ export function AiAssistantPage() {
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
+    setError(null);
 
-    setTimeout(() => {
+    try {
+      let response: string;
+
+      if (aiConfigured) {
+        // Use MiniMax API
+        const chatHistory = messages.map(m => ({
+          role: m.sender === 'user' ? 'user' : 'assistant',
+          content: m.text,
+        }));
+        response = await chatWithMiniMax(text.trim(), chatHistory);
+      } else {
+        // Use mock response
+        response = getMockResponse(text.trim());
+        // Add small delay to simulate "thinking"
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
       const botMsg: ChatMessage = {
         id: generateId(),
         sender: 'assistant',
-        text: getResponse(text.trim()),
+        text: response,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, botMsg]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao processar mensagem');
+      // Show fallback response
+      const botMsg: ChatMessage = {
+        id: generateId(),
+        sender: 'assistant',
+        text: 'Desculpe, tive um problema ao processar sua mensagem. Tente novamente.',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, botMsg]);
+    } finally {
       setIsTyping(false);
-    }, 400);
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -157,22 +189,44 @@ export function AiAssistantPage() {
           alt="Assistente"
           className="w-16 h-16 rounded-full object-cover shadow-md"
         />
-        <div>
-          <h1 className="text-lg font-extrabold text-brand-navy">
+        <div className="flex-1">
+          <h1 className="text-lg font-extrabold text-brand-navy flex items-center gap-2">
             Assistente PrecificaTur
+            {aiConfigured && (
+              <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Bot size={12} />
+                MiniMax
+              </span>
+            )}
           </h1>
           <p className="text-sm text-surface-500">
-            Tire dúvidas sobre a plataforma, precificação e o mercado turístico.
+            {aiConfigured
+              ? 'Powered by MiniMax — Tire dúvidas sobre a plataforma, precificação e o mercado turístico.'
+              : 'Modo demonstração — Configure a API do MiniMax para respostas inteligentes.'}
           </p>
         </div>
       </div>
+
+      {/* ── Error Banner ── */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-700 text-sm">
+          <AlertCircle size={16} />
+          <span>{error}</span>
+          <button
+            onClick={() => setError(null)}
+            className="ml-auto text-red-400 hover:text-red-600"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* ── Chat area ── */}
       <div className="flex-1 overflow-y-auto px-2 py-4 space-y-4">
         {!hasMessages && (
           <div className="flex flex-col items-center justify-center h-full gap-6">
             <p className="text-sm text-surface-400 text-center">
-              Escolha uma pergunta ou digite a sua:
+              {aiConfigured ? 'Escolha uma pergunta ou digite a sua:' : 'Modo demonstração — experimente as perguntas abaixo:'}
             </p>
             <div className="flex flex-wrap gap-2 justify-center max-w-lg">
               {SUGGESTIONS.map((s, i) => (
@@ -210,14 +264,15 @@ export function AiAssistantPage() {
       <div className="flex-shrink-0 border-t border-surface-200 p-4 flex gap-3 items-center">
         <input
           className="input flex-1"
-          placeholder="Digite sua pergunta..."
+          placeholder={aiConfigured ? "Digite sua pergunta..." : "Configure VITE_MINIMAX_API_KEY para ativar..."}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
+          disabled={isTyping}
         />
         <button
           onClick={() => sendMessage(input)}
-          disabled={!input.trim()}
+          disabled={!input.trim() || isTyping}
           className={cn(
             'w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 transition-all',
             'bg-brand-orange text-white hover:bg-brand-orange-500',

@@ -23,8 +23,34 @@ export function calcTotalVariablePercent(variables: VariableCost[]): number {
 }
 
 /**
+ * Convert percentage-type variable costs into rateado-BRL equivalents.
+ *
+ * Business rule: a percentage cost (e.g. 10% commission) applies to the
+ * TOTAL tour revenue at the reference pax count — it is a fixed amount
+ * regardless of how many people ultimately show up.
+ *
+ *   totalPctCost = pct/100 × price × refPax   (computed once)
+ *   perPaxCost   = totalPctCost / actualPax    (rateado at simulation time)
+ *
+ * This converts them to `brl + perPax:false` so the rest of the engine
+ * treats them as rateado fixed costs.
+ */
+export function resolvePercentageVariables(
+  variables: VariableCost[],
+  price: number,
+  refPax: number,
+): VariableCost[] {
+  if (refPax <= 0 || price <= 0) return variables;
+  return variables.map(v =>
+    v.type !== 'percentage'
+      ? v
+      : { ...v, type: 'brl' as const, brlValue: price * (v.percentage / 100) * refPax, percentage: 0, perPax: false }
+  );
+}
+
+/**
  * Calculate per-pax variable cost amount.
- * - percentage type: price × pct/100
+ * - percentage type: price × pct/100  (use resolvePercentageVariables first for correct totals)
  * - brl + perPax true : brlValue (R$ per pax)
  * - brl + perPax false: brlValue ÷ pax (rateio)
  */
@@ -122,6 +148,52 @@ export function findBreakEven(
     if (row.finalResult >= 0) return pax;
   }
   return null;
+}
+
+/**
+ * Pure-formula price from desired margin (on gross revenue).
+ *
+ * Separates the three variable-cost types that behave differently on the price:
+ *  - percentage (v): scales with price → lives in the factor (1 - v - m)
+ *  - BRL per-pax (B_pp): total scales with pax only → adds to fixed load
+ *  - BRL rateado (B_rat): constant total → adds to fixed load
+ *
+ * effectiveFixed = F + B_pp · n + B_rat
+ * margin m satisfies:  P · n · (1 - v - m) = effectiveFixed
+ *                      P = effectiveFixed / ( n · (1 - v - m) )
+ *
+ * Returns null when pax ≤ 0, or when 1 - v - m ≤ 0 (margin unreachable given
+ * the percentage taxes), or when the effective fixed load is zero (any price
+ * yields the requested margin — no unique answer).
+ */
+export function calcPriceFromMargin(
+  totalFixed: number,
+  variables: VariableCost[],
+  marginPct: number,
+  pax: number,
+): number | null {
+  if (pax <= 0) return null;
+
+  let pctSum = 0;
+  let brlPerPaxSum = 0;
+  let brlRateadoSum = 0;
+  for (const v of variables) {
+    if (v.type === 'percentage') {
+      pctSum += v.percentage;
+    } else {
+      const val = v.brlValue ?? 0;
+      if (v.perPax) brlPerPaxSum += val;
+      else brlRateadoSum += val;
+    }
+  }
+
+  const effectiveFixed = totalFixed + brlPerPaxSum * pax + brlRateadoSum;
+  if (effectiveFixed <= 0) return null;
+
+  const factor = 1 - pctSum / 100 - marginPct / 100;
+  if (factor <= 0) return null;
+
+  return effectiveFixed / (pax * factor);
 }
 
 /** Reverse pricing: given desired profit, pax count, and costs, find the price */

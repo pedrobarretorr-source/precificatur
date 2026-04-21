@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Calculator, LayoutDashboard, Map, FileText,
-  ChevronLeft, ChevronRight, Bot, X, Shield, Lock
+  ChevronLeft, ChevronRight, Bot, X, Shield, Lock, Settings
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -19,9 +19,11 @@ const NAV_ITEMS = [
   { id: 'dashboard',    label: 'Dashboard',       icon: LayoutDashboard },
   { id: 'calculator',   label: 'Calculadora',      icon: Calculator },
   { id: 'routes',       label: 'Meus roteiros',    icon: Map },
-  { id: 'reports',      label: 'Relatórios',       icon: FileText },
+  { id: 'settings',     label: 'Configurações',    icon: Settings },
   { id: 'ai-assistant', label: 'Assistente de IA', icon: Bot },
 ];
+
+const BOTTOM_ITEMS: { id: string; label: string; icon: typeof Settings }[] = [];
 
 const ADMIN_ITEM = { id: 'admin', label: 'Admin', icon: Shield };
 
@@ -30,20 +32,26 @@ function NavItems({
   onNavigate,
   showLabels,
   isAdmin,
+  isBottom = false,
 }: {
   activePage: string;
   onNavigate: (page: string) => void;
   showLabels: boolean;
   isAdmin: boolean;
+  isBottom?: boolean;
 }) {
-  const items = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
+  const items = isBottom
+    ? BOTTOM_ITEMS
+    : isAdmin
+      ? [...NAV_ITEMS, ADMIN_ITEM]
+      : NAV_ITEMS;
 
   return (
     <>
       {items.map(item => {
         const Icon = item.icon;
         const isActive = activePage === item.id;
-        const isLocked = LOCKED_IDS.has(item.id);
+        const isLocked = !isBottom && LOCKED_IDS.has(item.id);
         return (
           <button
             key={item.id}
@@ -115,8 +123,7 @@ export function Sidebar({ activePage, onNavigate, mobileOpen = false, onCloseMob
         <aside
           className={cn(
             'absolute top-0 left-0 h-full w-[280px] flex flex-col gradient-brand text-white',
-            'transition-transform duration-300 ease-out shadow-2xl',
-            mobileOpen ? 'translate-x-0' : '-translate-x-full'
+            'transition-transform duration-300 ease-out shadow-2xl'
           )}
         >
           {/* Header with close button */}
@@ -138,6 +145,11 @@ export function Sidebar({ activePage, onNavigate, mobileOpen = false, onCloseMob
           <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
             <NavItems activePage={activePage} onNavigate={handleNavigate} showLabels isAdmin={isAdmin} />
           </nav>
+
+          {/* Bottom navigation */}
+          <div className="py-4 px-3 border-t border-white/10">
+            <NavItems activePage={activePage} onNavigate={handleNavigate} showLabels isAdmin={isAdmin} isBottom />
+          </div>
         </aside>
       </div>
 
@@ -169,6 +181,13 @@ export function Sidebar({ activePage, onNavigate, mobileOpen = false, onCloseMob
         <nav className="flex-1 py-4 px-3 space-y-1">
           <NavItems activePage={activePage} onNavigate={onNavigate} showLabels={!collapsed} isAdmin={isAdmin} />
         </nav>
+
+        {/* Bottom navigation */}
+        {!collapsed && (
+          <div className="py-4 px-3 border-t border-white/10">
+            <NavItems activePage={activePage} onNavigate={onNavigate} showLabels={!collapsed} isAdmin={isAdmin} isBottom />
+          </div>
+        )}
 
         {/* Collapse toggle */}
         <div className="px-3 pb-4">

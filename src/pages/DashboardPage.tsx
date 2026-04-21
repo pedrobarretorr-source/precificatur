@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import {
   Calculator, Map, TrendingUp, FileText, ArrowRight,
-  DollarSign, Users, Percent, BarChart3, Sparkles,
+  DollarSign, Users, Percent, BarChart3,
   ClipboardList, SlidersHorizontal, PieChart, Lock,
   Clock, ChevronRight,
 } from 'lucide-react';
 import { runSimulation, formatBRL, formatPercent } from '@/lib/pricing-engine';
 import { ROUTE_TYPE_LABELS, type Route } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 interface DashboardPageProps {
@@ -15,18 +16,31 @@ interface DashboardPageProps {
   loading: boolean;
 }
 
+function marginForRoute(route: Route): number | null {
+  const simPax = route.simulationPax || 1;
+  const maxPax = Math.max(simPax, route.maxPax || simPax, 1);
+  const sim = runSimulation(route.fixedCosts, route.variableCosts, route.estimatedPrice, maxPax);
+  const row = sim.rows.find(r => r.pax === simPax) ?? sim.rows[sim.rows.length - 1];
+  const m = row?.margin;
+  return m !== undefined && isFinite(m) ? m : null;
+}
+
 export function DashboardPage({ onNavigate, routes, loading }: DashboardPageProps) {
+  const { user } = useAuth();
+
+  const firstName = ((user?.user_metadata?.full_name as string | undefined)
+    ?.split(' ')[0])
+    ?? user?.email?.split('@')[0]
+    ?? 'Operador';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
 
   const stats = useMemo(() => {
-    if (routes.length === 0) return { count: 0, avgPrice: null, avgMargin: null, bestRoute: null as Route | null };
+    if (routes.length === 0) return { count: 0, avgPrice: null, avgMargin: null, bestRoute: null as Route | null, bestMargin: null as number | null };
     const prices = routes.map(r => r.estimatedPrice).filter(p => p > 0);
     const routeMargins = routes
-      .map(r => {
-        const sim = runSimulation(r.fixedCosts, r.variableCosts, r.estimatedPrice, 10);
-        const margin = sim.rows.length >= 10 ? sim.rows[9].margin : null;
-        return { route: r, margin };
-      })
-      .filter((rm): rm is { route: Route; margin: number } => rm.margin !== null && isFinite(rm.margin));
+      .map(r => ({ route: r, margin: marginForRoute(r) }))
+      .filter((rm): rm is { route: Route; margin: number } => rm.margin !== null);
     const margins = routeMargins.map(rm => rm.margin);
     const best = routeMargins.sort((a, b) => b.margin - a.margin)[0] ?? null;
     return {
@@ -34,6 +48,7 @@ export function DashboardPage({ onNavigate, routes, loading }: DashboardPageProp
       avgPrice: prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : null,
       avgMargin: margins.length > 0 ? margins.reduce((a, b) => a + b, 0) / margins.length : null,
       bestRoute: best?.route ?? null,
+      bestMargin: best?.margin ?? null,
     };
   }, [routes]);
 
@@ -49,57 +64,65 @@ export function DashboardPage({ onNavigate, routes, loading }: DashboardPageProp
     <div className="space-y-6 sm:space-y-8 animate-fade-in">
 
       {/* ── Hero banner ── */}
-      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl gradient-brand p-5 sm:p-8 text-white">
-        <div className="relative z-10">
-          <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-2">
-            Precificador de Roteiros
-          </p>
-          <h1 className="text-xl sm:text-3xl font-extrabold mb-2 leading-tight">
-            Quanto cobrar pelo seu<br />
-            <span className="text-brand-orange-300">próximo roteiro?</span>
-          </h1>
-          <p className="text-white/60 max-w-md text-sm leading-relaxed">
-            Informe seus custos, defina sua margem e descubra
-            quantos passageiros precisa para lucrar.
-          </p>
-          <button
-            onClick={() => onNavigate('calculator')}
-            className="mt-5 btn bg-brand-orange text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl
-                       font-bold hover:bg-brand-orange-500 transition-all
-                       flex items-center gap-2 text-sm sm:text-base shadow-button"
-          >
-            <Calculator size={18} />
-            Calcular agora
-            <ArrowRight size={16} />
-          </button>
-        </div>
-        {/* Decorative */}
-        <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-white/5" />
-        <div className="absolute -right-8 top-8 w-48 h-48 rounded-full bg-white/5" />
-        <div className="absolute right-24 -bottom-8 w-32 h-32 rounded-full bg-brand-orange/20" />
+      <div className="rounded-2xl sm:rounded-3xl gradient-brand p-5 sm:p-7 text-white">
+        <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-2">
+          {greeting}, {firstName}
+        </p>
+        <h1 className="text-xl sm:text-3xl font-extrabold mb-2 leading-tight">
+          Quanto cobrar pelo seu<br />
+          <span className="text-brand-orange-300">próximo roteiro?</span>
+        </h1>
+        <p className="text-white/60 max-w-md text-sm leading-relaxed">
+          Informe seus custos, defina sua margem e descubra
+          quantos passageiros precisa para lucrar.
+        </p>
+        <button
+          onClick={() => onNavigate('calculator')}
+          className="mt-5 btn bg-brand-orange text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl
+                     font-bold hover:bg-brand-orange-500 transition-all
+                     flex items-center gap-2 text-sm sm:text-base shadow-button"
+        >
+          <Calculator size={18} />
+          Calcular agora
+          <ArrowRight size={16} />
+        </button>
       </div>
 
       {/* ── Stats row ── */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4">
         <StatCard
-          icon={<ClipboardList size={18} />}
+          icon={<ClipboardList size={14} />}
+          label="Roteiros"
           value={loading ? '...' : String(stats.count)}
-          sub="criados"
-          iconBg="bg-brand-navy-50 text-brand-navy"
+          sub="Roteiros salvos"
         />
         <StatCard
-          icon={<DollarSign size={18} />}
+          icon={<DollarSign size={14} />}
+          label="Preço médio"
           value={loading ? '...' : stats.avgPrice !== null ? formatBRL(stats.avgPrice) : '—'}
-          sub="por passageiro"
-          iconBg="bg-brand-orange-50 text-brand-orange"
+          sub="Preço médio / pax"
         />
         <StatCard
-          icon={<Percent size={18} />}
+          icon={<Percent size={14} />}
+          label="Margem"
           value={loading ? '...' : stats.avgMargin !== null ? formatPercent(stats.avgMargin) : '—'}
-          sub="de lucro"
-          iconBg="bg-emerald-50 text-emerald-600"
+          sub="Margem média"
         />
       </div>
+
+      {/* ── Best route highlight (discreet) ── */}
+      {stats.bestRoute && stats.bestMargin !== null && (
+        <div className="rounded-xl bg-surface-100 border border-surface-300/60 px-3 sm:px-4 py-2.5 flex items-center gap-3">
+          <div className="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0">
+            <TrendingUp size={14} className="text-emerald-600" />
+          </div>
+          <p className="text-xs text-surface-700 flex-1 min-w-0 truncate">
+            <span className="font-bold text-surface-500 uppercase tracking-wide text-[10px] mr-2">Maior margem</span>
+            <span className="font-extrabold text-surface-800">{stats.bestRoute.name}</span>
+            <span className="text-surface-500"> — {formatPercent(stats.bestMargin)} de margem</span>
+          </p>
+        </div>
+      )}
 
       {/* ── Quick actions ── */}
       <section>
@@ -139,12 +162,11 @@ export function DashboardPage({ onNavigate, routes, loading }: DashboardPageProp
         </div>
       </section>
 
-      {/* ── How it works (shown for everyone, especially useful for new users) ── */}
+      {/* ── 3-step onboarding (new users) ── */}
       {!hasRoutes && (
-        <section className="card bg-gradient-to-br from-brand-navy-50/60 to-white border-brand-navy-100">
-          <h2 className="text-base font-extrabold text-brand-navy mb-4 flex items-center gap-2">
-            <Sparkles size={18} className="text-brand-orange" />
-            Como funciona?
+        <section className="card">
+          <h2 className="text-base font-extrabold text-brand-navy mb-4">
+            Comece em 3 passos
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
             <StepItem
@@ -177,7 +199,7 @@ export function DashboardPage({ onNavigate, routes, loading }: DashboardPageProp
         </section>
       )}
 
-      {/* ── Recent routes (only if user has routes) ── */}
+      {/* ── Recent routes ── */}
       {hasRoutes && (
         <section>
           <div className="flex items-center justify-between mb-3">
@@ -192,34 +214,15 @@ export function DashboardPage({ onNavigate, routes, loading }: DashboardPageProp
             </button>
           </div>
           <div className="space-y-2.5">
-            {recentRoutes.map((route, i) => (
+            {recentRoutes.map(route => (
               <RecentRouteRow
                 key={route.id}
                 route={route}
-                index={i}
                 onClick={() => onNavigate('calculator')}
               />
             ))}
           </div>
         </section>
-      )}
-
-      {/* ── Best route highlight ── */}
-      {stats.bestRoute && stats.avgMargin !== null && (
-        <div className="card bg-emerald-50 border-emerald-200 flex items-start gap-3 sm:gap-4">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center flex-shrink-0">
-            <TrendingUp size={20} className="text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-extrabold text-emerald-800">
-              Melhor desempenho
-            </p>
-            <p className="text-xs text-emerald-700 mt-0.5">
-              <span className="font-bold">{stats.bestRoute.name}</span> é o roteiro com
-              a maior margem entre os seus roteiros cadastrados.
-            </p>
-          </div>
-        </div>
       )}
     </div>
   );
@@ -227,21 +230,22 @@ export function DashboardPage({ onNavigate, routes, loading }: DashboardPageProp
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function StatCard({ icon, value, sub, iconBg }: {
+function StatCard({ icon, label, value, sub }: {
   icon: React.ReactNode;
+  label: string;
   value: string;
   sub: string;
-  iconBg: string;
 }) {
   return (
-    <div className="card flex flex-col items-center text-center py-4 sm:py-6 gap-1.5">
-      <div className={cn('w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center', iconBg)}>
+    <div className="card py-4 sm:py-5">
+      <div className="flex items-center gap-1.5 text-surface-500 mb-1.5">
         {icon}
+        <p className="text-[10px] font-bold uppercase tracking-wide">{label}</p>
       </div>
-      <p className="text-lg sm:text-2xl font-extrabold text-surface-800 leading-tight">{value}</p>
-      <div>
-        <p className="text-[10px] sm:text-xs font-bold text-surface-500 uppercase tracking-wide">{sub}</p>
-      </div>
+      <p className="text-lg sm:text-2xl font-extrabold text-surface-800 leading-tight mb-1">
+        {value}
+      </p>
+      <p className="text-[11px] text-surface-500 leading-snug">{sub}</p>
     </div>
   );
 }
@@ -260,15 +264,16 @@ function ActionCard({ icon, title, desc, color, onClick, badge, locked }: {
       onClick={locked ? undefined : onClick}
       disabled={locked}
       className={cn(
-        'card-hover text-left group animate-slide-up relative',
-        locked && 'opacity-55 cursor-not-allowed hover:shadow-card hover:border-surface-300/50'
+        'text-left relative card transition-all',
+        locked
+          ? 'opacity-55 cursor-not-allowed'
+          : 'hover:shadow-card-hover hover:-translate-y-0.5 cursor-pointer'
       )}
     >
-      <div className="flex items-start justify-between mb-2.5">
+      <div className="flex items-start justify-between mb-3">
         <div className={cn(
           'w-10 h-10 rounded-xl flex items-center justify-center',
           locked ? 'bg-surface-300' : color,
-          !locked && 'group-hover:scale-110 transition-transform',
         )}>
           <span className="text-white">{locked ? <Lock size={20} /> : icon}</span>
         </div>
@@ -283,8 +288,8 @@ function ActionCard({ icon, title, desc, color, onClick, badge, locked }: {
           </span>
         )}
       </div>
-      <h3 className="font-extrabold text-surface-800 text-sm mb-0.5">{title}</h3>
-      <p className="text-xs text-surface-500 leading-relaxed">{desc}</p>
+      <h3 className="font-extrabold text-surface-800 text-sm mb-1">{title}</h3>
+      <p className="text-xs text-surface-500 leading-relaxed line-clamp-2">{desc}</p>
     </button>
   );
 }
@@ -298,7 +303,7 @@ function StepItem({ step, icon, title, desc }: {
   return (
     <div className="flex flex-col items-center text-center sm:items-start sm:text-left gap-2">
       <div className="flex items-center gap-2">
-        <span className="w-6 h-6 rounded-full bg-brand-orange text-white text-xs font-extrabold flex items-center justify-center">
+        <span className="w-6 h-6 rounded-full bg-brand-navy-50 text-brand-navy text-xs font-extrabold flex items-center justify-center">
           {step}
         </span>
         <span className="text-brand-navy">{icon}</span>
@@ -309,25 +314,22 @@ function StepItem({ step, icon, title, desc }: {
   );
 }
 
-function RecentRouteRow({ route, index, onClick }: {
+function RecentRouteRow({ route, onClick }: {
   route: Route;
-  index: number;
   onClick: () => void;
 }) {
-  const sim = runSimulation(route.fixedCosts, route.variableCosts, route.estimatedPrice, 10);
-  const margin = sim.rows.length >= 10 ? sim.rows[9].margin : null;
+  const margin = marginForRoute(route);
   const updatedDate = new Date(route.updatedAt).toLocaleDateString('pt-BR');
   const isPositive = margin !== null && margin > 0;
 
   return (
     <button
       onClick={onClick}
-      className="card-hover w-full text-left flex items-center gap-3 sm:gap-4 py-3 sm:py-4 animate-slide-up group"
-      style={{ animationDelay: `${index * 80}ms` }}
+      className="card-hover w-full text-left flex items-center gap-3 sm:gap-4 py-3 sm:py-4 group"
     >
       {/* Icon */}
-      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-navy-50 flex items-center justify-center flex-shrink-0">
-        <Map size={18} className="text-brand-navy" />
+      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-surface-200 flex items-center justify-center flex-shrink-0">
+        <Map size={18} className="text-surface-600" />
       </div>
 
       {/* Info */}

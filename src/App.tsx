@@ -10,6 +10,7 @@ const CalculatorPage = lazy(() => import('@/pages/CalculatorPage').then(m => ({ 
 const RoutesPage     = lazy(() => import('@/pages/RoutesPage').then(m => ({ default: m.RoutesPage })));
 const LoginPage      = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const AdminPage      = lazy(() => import('@/pages/AdminPage').then(m => ({ default: m.AdminPage })));
+const SettingsPage   = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
@@ -53,12 +54,12 @@ function AppContent() {
       case 'ai-assistant':
         return <DashboardPage onNavigate={navigateTo} routes={routes} loading={routesLoading} />;
       case 'admin':
-        // Return DashboardPage directly for non-admins — do NOT call setActivePage here
-        // (state updates during render cause React warnings)
         if (!profile?.is_admin) {
           return <DashboardPage onNavigate={setActivePage} routes={routes} loading={routesLoading} />;
         }
         return <AdminPage />;
+      case 'settings':
+        return <SettingsPage />;
       default:
         return <DashboardPage onNavigate={setActivePage} routes={routes} loading={routesLoading} />;
     }
