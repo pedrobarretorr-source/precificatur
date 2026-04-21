@@ -2,6 +2,7 @@
   "name": "precificatur",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Plataforma de precificação de roteiros turísticos",
   "scripts": {
     "dev": "vite",
