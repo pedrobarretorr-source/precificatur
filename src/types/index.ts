@@ -39,11 +39,13 @@ export interface VariableCost {
   perPax?: boolean;     // true = R$ × pax | false = R$ ÷ pax (rateio)
 }
 
-export const DEFAULT_VARIABLE_COSTS: VariableCost[] = [
-  { id: 'admin',    label: 'Administrativo', emoji: '📊', type: 'percentage', percentage: 10 },
-  { id: 'comissao', label: 'Comissão',       emoji: '🤝', type: 'percentage', percentage: 10 },
-  { id: 'encargos', label: 'Encargos',       emoji: '📋', type: 'percentage', percentage: 12.5 },
-  { id: 'taxas',    label: 'Taxas / Cartão', emoji: '💳', type: 'percentage', percentage: 4 },
+export const DEFAULT_VARIABLE_COSTS: VariableCost[] = [];
+
+export const DEFAULT_CHARGE_COSTS: VariableCost[] = [
+  { id: 'taxas',    label: 'Máquina de cartão', emoji: 'orange', type: 'percentage', percentage: 4 },
+  { id: 'comissao', label: 'Comissão',           emoji: 'blue',   type: 'percentage', percentage: 10 },
+  { id: 'admin',    label: 'Administrativo',     emoji: 'purple', type: 'percentage', percentage: 10 },
+  { id: 'encargos', label: 'Encargos',           emoji: 'red',    type: 'percentage', percentage: 12.5 },
 ];
 
 // ── Currency ──
@@ -85,6 +87,7 @@ export interface Route {
   // Costs
   fixedCosts: CostItem[];
   variableCosts: VariableCost[];
+  chargeCosts: VariableCost[];
   // Pricing
   estimatedPrice: number;
   simulationPax: number;

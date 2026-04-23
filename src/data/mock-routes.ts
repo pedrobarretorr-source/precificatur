@@ -16,11 +16,12 @@ export const MOCK_ROUTES: Route[] = [
       { id: 'fc-3', label: 'Almoço típico roraimense',     value: 180, category: 'alimentacao', currency: 'BRL' },
       { id: 'fc-4', label: 'Entrada Museu Integração',     value: 90,  category: 'ingresso',    currency: 'BRL' },
     ],
-    variableCosts: [
-      { id: 'vc-1', label: 'Administrativo', type: 'percentage', percentage: 10 },
-      { id: 'vc-2', label: 'Comissão',       type: 'percentage', percentage: 10 },
-      { id: 'vc-3', label: 'Encargos',       type: 'percentage', percentage: 12.5 },
-      { id: 'vc-4', label: 'Taxas / Cartão', type: 'percentage', percentage: 4 },
+    variableCosts: [],
+    chargeCosts: [
+      { id: 'vc-1', label: 'Administrativo',     type: 'percentage', percentage: 10 },
+      { id: 'vc-2', label: 'Comissão',           type: 'percentage', percentage: 10 },
+      { id: 'vc-3', label: 'Encargos',           type: 'percentage', percentage: 12.5 },
+      { id: 'vc-4', label: 'Máquina de cartão',  type: 'percentage', percentage: 4 },
     ],
     estimatedPrice: 120,
     simulationPax: 10,

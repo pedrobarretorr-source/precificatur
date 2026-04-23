@@ -62,17 +62,8 @@ export const PRESET_FIXED_COSTS: PresetFixedCost[] = [
   { label: 'Limpeza/Higienização', category: 'outro' },
 ];
 
-// Sugestões rápidas para custos variáveis (sem tipo/valor fixo)
+// Sugestões rápidas para custos variáveis por pessoa (serviços, ingressos, alimentação)
 export const PRESET_VARIABLE_COSTS: PresetVariableCost[] = [
-  // Taxas e encargos
-  { label: 'Taxa cartão', emoji: 'orange' },
-  { label: 'Comissão', emoji: 'blue' },
-  { label: 'Administrativo', emoji: 'purple' },
-  { label: 'Encargos', emoji: 'red' },
-  { label: 'Taxa de serviço', emoji: 'amber' },
-  { label: 'Taxa operacional', emoji: 'yellow' },
-  
-  // Serviços por pessoa
   { label: 'Ingresso museu', emoji: 'teal' },
   { label: 'Taxa de visitação', emoji: 'teal' },
   { label: 'Refeição', emoji: 'green' },
@@ -89,4 +80,17 @@ export const PRESET_VARIABLE_COSTS: PresetVariableCost[] = [
   { label: 'Equipamento', emoji: 'orange' },
   { label: 'Transfer', emoji: 'blue' },
   { label: 'Guia local', emoji: 'purple' },
+];
+
+// Sugestões rápidas para encargos/taxas percentuais (máquina de cartão, impostos, comissões)
+export const PRESET_CHARGE_COSTS: PresetVariableCost[] = [
+  { label: 'Máquina de cartão', emoji: 'orange' },
+  { label: 'Comissão', emoji: 'blue' },
+  { label: 'Administrativo', emoji: 'purple' },
+  { label: 'Encargos', emoji: 'red' },
+  { label: 'Taxa de serviço', emoji: 'amber' },
+  { label: 'Taxa operacional', emoji: 'yellow' },
+  { label: 'ISS', emoji: 'teal' },
+  { label: 'Simples Nacional', emoji: 'green' },
+  { label: 'Marketing', emoji: 'pink' },
 ];

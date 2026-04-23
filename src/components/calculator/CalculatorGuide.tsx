@@ -8,7 +8,8 @@ interface CalculatorGuideProps {
 const GUIDE_MESSAGES = [
   'Vamos começar! O nome do roteiro é como você vai identificar esse passeio depois. Quanto mais descritivo, mais fácil de encontrar nas suas análises.',
   'Aqui entram os gastos que existem independente de quantas pessoas vão. Van, hotel, guia. Seja com 2 ou 20 passageiros, você paga do mesmo jeito.',
-  'Aqui você adiciona serviços extras por pessoa. Podem ser taxas, comissões, ou serviços adicionais como fotografia, alimentação, etc.',
+  'Aqui você adiciona serviços e inclusões por pessoa: ingressos, refeições, equipamentos, fotografia. São custos que variam com o número de passageiros.',
+  'Defina os encargos percentuais que vão sobre o preço: máquina de cartão, comissões para parceiros, impostos e taxas administrativas.',
   'Aqui está o coração da precificação! Defina o preço que quer cobrar, ou diga qual margem de lucro quer ter, e a calculadora encontra o valor ideal.',
   'Pronto! Observe o ponto de equilíbrio: é o mínimo de passageiros para não ter prejuízo. Qualquer passageiro acima disso já é lucro!',
 ];

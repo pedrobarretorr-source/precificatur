@@ -23,6 +23,7 @@ function toDbRow(
     duration_days: Math.max(1, route.days?.length ?? 1),
     fixed_costs: route.fixedCosts ?? [],
     variable_costs: route.variableCosts ?? [],
+    charge_costs: route.chargeCosts ?? [],
     days: route.days ?? [],
     updated_at: new Date().toISOString(),
     metadata: {
@@ -49,6 +50,7 @@ function fromDbRow(row: DbRow): Route {
     currency: (row.currency as Currency) || 'BRL',
     fixedCosts: (row.fixed_costs as Route['fixedCosts']) || [],
     variableCosts: (row.variable_costs as Route['variableCosts']) || [],
+    chargeCosts: (row.charge_costs as Route['chargeCosts']) || [],
     days: (row.days as Route['days']) || [],
     updatedAt: (row.updated_at as string) || '',
     createdAt: (row.created_at as string) || '',

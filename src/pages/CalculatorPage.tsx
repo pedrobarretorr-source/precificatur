@@ -18,13 +18,14 @@ import {
 } from '@/lib/pricing-engine';
 import {
   COST_CATEGORY_LABELS,
+  DEFAULT_CHARGE_COSTS,
   type CostCategory,
   type CostItem,
   type VariableCost,
 } from '@/types';
 import { generateId, cn } from '@/lib/utils';
 import type { RouteType, Currency, Route } from '@/types';
-import { PRESET_FIXED_COSTS, PRESET_VARIABLE_COSTS } from '@/data/preset-costs';
+import { PRESET_FIXED_COSTS, PRESET_VARIABLE_COSTS, PRESET_CHARGE_COSTS } from '@/data/preset-costs';
 import { useCustomCosts } from '@/hooks/useCustomCosts';
 
 interface CalculatorPageProps {
@@ -85,7 +86,8 @@ const GROUPED_PRESETS = (() => {
 const STEPS = [
   { label: 'Roteiro', title: 'Sobre o roteiro', sub: 'Identifique seu roteiro com um nome. Cliente e data são opcionais.' },
   { label: 'Custos fixos', title: 'Custos fixos do roteiro', sub: 'Custos que não mudam com a quantidade de passageiros.' },
-  { label: 'Variáveis', title: 'Custos extras / Inclusões', sub: 'Serviços adicionais por pessoa. Adicione ou escolha entre suas configurações.' },
+  { label: 'Variáveis', title: 'Custos extras / Inclusões', sub: 'Serviços adicionais por pessoa: ingressos, refeições, equipamentos, etc.' },
+  { label: 'Taxas', title: 'Taxas e encargos', sub: 'Percentuais que incidem sobre o preço final: cartão, impostos, comissões.' },
   { label: 'Preço', title: 'Defina seu preço', sub: 'Escolha como quer precificar: pelo valor de venda ou pela margem de lucro.' },
   { label: 'Resultado', title: 'Simulação completa', sub: 'Análise financeira detalhada do seu roteiro.' },
 ];
@@ -93,7 +95,8 @@ const STEPS = [
 const GUIDE_MESSAGES = [
   'Vamos começar! O nome do roteiro é como você vai identificar esse passeio depois. Quanto mais descritivo, mais fácil de encontrar nas suas análises.',
   'Aqui entram os gastos que existem independente de quantas pessoas vão. van, hotel, guia. Seja com 2 ou 20 passageiros, você paga do mesmo jeito.',
-  'Aqui você adiciona serviços extras por pessoa. Podem ser taxas, comissões, ou serviços adicionais como fotografia, alimentação, etc.',
+  'Aqui você adiciona serviços e inclusões por pessoa: ingressos, refeições, equipamentos, fotografia. São custos que variam com o número de passageiros.',
+  'Defina os encargos percentuais que vão sobre o preço: máquina de cartão, comissões para parceiros, impostos e taxas administrativas.',
   'Aqui está o coração da precificação! Defina o preço que quer cobrar, ou diga qual margem de lucro quer ter, e a calculadora encontra o valor ideal.',
   'Pronto! Observe o ponto de equilíbrio: é o mínimo de passageiros para não ter prejuízo. Qualquer passageiro acima disso já é lucro!',
 ];
@@ -167,13 +170,27 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
     initialRoute?.variableCosts?.length ? initialRoute.variableCosts : []
   );
 
-  // Estado para o formulário de adicionar novo custo
+  const [chargeCosts, setChargeCosts] = useState<VariableCost[]>(
+    initialRoute?.chargeCosts?.length ? initialRoute.chargeCosts : DEFAULT_CHARGE_COSTS
+  );
+
+  // Estado para o formulário de adicionar novo custo variável
   const [newVarLbl, setNewVarLbl] = useState('');
   const [newVarVal, setNewVarVal] = useState('');
   const [newVarType, setNewVarType] = useState<'percentage' | 'brl'>('brl');
   const [newVarPerPax, setNewVarPerPax] = useState(true);
   const [newVarColor, setNewVarColor] = useState('orange');
   const [showVarForm, setShowVarForm] = useState(false);
+
+  // Estado para o formulário de adicionar novo encargo percentual
+  const [newChargeLbl, setNewChargeLbl] = useState('');
+  const [newChargeVal, setNewChargeVal] = useState('');
+  const [newChargeColor, setNewChargeColor] = useState('orange');
+  const [showChargeForm, setShowChargeForm] = useState(false);
+
+  // Preset de encargo selecionado para adição rápida
+  const [chargePresetOpen, setChargePresetOpen] = useState(false);
+  const chargePresetRef = useRef<HTMLDivElement>(null);
 
   // Preset selecionado para edição rápida
   const [presetSelected, setPresetSelected] = useState<{ label: string; emoji: string } | null>(null);
@@ -232,13 +249,15 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
   }, [routes]);
 
   const totalFixed = useMemo(() => calcTotalFixedCosts(fixedCosts), [fixedCosts]);
-  const totalVarPct = useMemo(() => calcTotalVariablePercent(varCosts), [varCosts]);
+  const allVarCosts = useMemo(() => [...varCosts, ...chargeCosts], [varCosts, chargeCosts]);
+  const totalVarPct = useMemo(() => calcTotalVariablePercent(allVarCosts), [allVarCosts]);
+  const totalChargePct = useMemo(() => calcTotalVariablePercent(chargeCosts), [chargeCosts]);
 
   // Percentage costs apply to total tour revenue (price × pax), not per-pax.
   // Convert them to rateado-BRL so the engine treats them as a fixed total.
   const effectiveVarCosts = useMemo(
-    () => resolvePercentageVariables(varCosts, price, simulationPax || 1),
-    [varCosts, price, simulationPax],
+    () => resolvePercentageVariables(allVarCosts, price, simulationPax || 1),
+    [allVarCosts, price, simulationPax],
   );
 
   const simulation = useMemo(
@@ -273,11 +292,21 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
     return () => document.removeEventListener('mousedown', handler);
   }, [presetsOpen, savedVarOpen]);
 
+  // Fechar dropdown de encargos quando clicar fora (Step 3)
+  useEffect(() => {
+    if (!chargePresetOpen) return;
+    function handler(e: MouseEvent) {
+      if (chargePresetRef.current && !chargePresetRef.current.contains(e.target as Node)) setChargePresetOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [chargePresetOpen]);
+
   function buildCurrentRoute() {
     return {
       id: routeId, name: routeName || 'Sem nome', client, date,
       contact, notes, region, type: routeType,
-      fixedCosts, variableCosts: varCosts, estimatedPrice: price,
+      fixedCosts, variableCosts: varCosts, chargeCosts, estimatedPrice: price,
       simulationPax, isExplorationMode, maxPax,
       currency: 'BRL' as Currency, days: [], isMultiDay: false,
       createdAt: routeCreatedAt, updatedAt: new Date().toISOString(),
@@ -294,7 +323,7 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
 
   function canAdvance() {
     if (step === 0) return routeName.trim().length > 0 && simulationPax >= 1;
-    if (step === 3) return price > 0;
+    if (step === 4) return price > 0;
     return true;
   }
 
@@ -326,10 +355,10 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
     const v = parseFloat(presetFormValue);
     if (isNaN(v)) return;
 
-    setVarCosts(prev => [...prev, presetFormType === 'percentage'
-      ? { id: generateId(), label: presetSelected.label, type: 'percentage', percentage: v, emoji: presetSelected.emoji }
-      : { id: generateId(), label: presetSelected.label, type: 'brl', percentage: 0, brlValue: v, perPax: presetFormPerPax, emoji: presetSelected.emoji }
-    ]);
+    setVarCosts(prev => [...prev, {
+      id: generateId(), label: presetSelected.label, type: 'brl',
+      percentage: 0, brlValue: v, perPax: true, emoji: presetSelected.emoji,
+    }]);
     setPresetSelected(null);
     setPresetFormValue('');
   }
@@ -342,7 +371,7 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
       type: item.type,
       percentage: item.type === 'percentage' ? item.defaultValue : 0,
       brlValue: item.type === 'brl' ? item.defaultValue : undefined,
-      perPax: item.perPax ?? true,
+      perPax: true,
       emoji: item.emoji,
     }]);
   }
@@ -355,7 +384,7 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
       type: cost.type,
       percentage: cost.type === 'percentage' ? cost.default_value : 0,
       brlValue: cost.type === 'brl' ? cost.default_value : undefined,
-      perPax: cost.per_pax,
+      perPax: true,
       emoji: (cost.emoji ?? 'orange') as string,
     }]);
   }
@@ -363,10 +392,10 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
   function addNewVarCost() {
     const v = parseFloat(newVarVal);
     if (!newVarLbl.trim() || isNaN(v)) return;
-    setVarCosts(prev => [...prev, newVarType === 'percentage'
-      ? { id: generateId(), label: newVarLbl, type: 'percentage', percentage: v, emoji: newVarColor }
-      : { id: generateId(), label: newVarLbl, type: 'brl', percentage: 0, brlValue: v, perPax: newVarPerPax, emoji: newVarColor }
-    ]);
+    setVarCosts(prev => [...prev, {
+      id: generateId(), label: newVarLbl, type: 'brl',
+      percentage: 0, brlValue: v, perPax: true, emoji: newVarColor,
+    }]);
     setNewVarLbl('');
     setNewVarVal('');
     setShowVarForm(false);
@@ -380,6 +409,27 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
     setNewVarColor('orange');
     setShowVarForm(true);
     setPresetSelected(null);
+  }
+
+  function addChargePreset(preset: { label: string; emoji: string }) {
+    if (chargeCosts.some(c => c.label === preset.label)) return;
+    setChargeCosts(prev => [...prev, {
+      id: generateId(), label: preset.label, type: 'percentage',
+      percentage: 0, emoji: preset.emoji,
+    }]);
+    setChargePresetOpen(false);
+  }
+
+  function addNewChargeCost() {
+    const v = parseFloat(newChargeVal);
+    if (!newChargeLbl.trim() || isNaN(v)) return;
+    setChargeCosts(prev => [...prev, {
+      id: generateId(), label: newChargeLbl, type: 'percentage',
+      percentage: v, emoji: newChargeColor,
+    }]);
+    setNewChargeLbl('');
+    setNewChargeVal('');
+    setShowChargeForm(false);
   }
 
   return (
@@ -683,27 +733,9 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
                   <span className="text-sm font-semibold text-brand-navy">{presetSelected.label}</span>
                   <button type="button" onClick={() => setPresetSelected(null)} aria-label="Cancelar" className="ml-auto text-surface-400 hover:text-surface-700 text-sm">✕</button>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="input-label">Tipo</label>
-                    <select className="input" value={presetFormType} onChange={e => setPresetFormType(e.target.value as 'percentage' | 'brl')}>
-                      <option value="brl">Valor (R$)</option>
-                      <option value="percentage">Percentual (%)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="input-label">Valor</label>
-                    <input className="input text-right" type="number" placeholder={presetFormType === 'percentage' ? '%' : 'R$'} value={presetFormValue} onChange={e => setPresetFormValue(e.target.value)} />
-                  </div>
-                  {presetFormType === 'brl' && (
-                    <div>
-                      <label className="input-label">Por pax?</label>
-                      <select className="input" value={presetFormPerPax ? 'true' : 'false'} onChange={e => setPresetFormPerPax(e.target.value === 'true')}>
-                        <option value="true">Sim</option>
-                        <option value="false">Não</option>
-                      </select>
-                    </div>
-                  )}
+                <div>
+                  <label className="input-label">Valor por pessoa (R$)</label>
+                  <input className="input text-right" type="number" placeholder="0,00" value={presetFormValue} onChange={e => setPresetFormValue(e.target.value)} />
                 </div>
                 <div className="flex gap-2">
                   <button type="button" onClick={confirmPresetCost} className="flex-1 py-2 rounded-xl bg-brand-orange text-white text-sm font-bold hover:bg-brand-orange-500 transition-colors">Adicionar</button>
@@ -780,13 +812,13 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
                       <div className="absolute z-30 left-0 right-0 mt-1 rounded-xl border border-surface-200 bg-white shadow-lg overflow-hidden animate-slide-up">
                         <div className="max-h-64 overflow-y-auto">
                           
-                          {/* Custos do SettingsPage (Minhas configurações) */}
-                          {customVarCosts.length > 0 && (
+                          {/* Custos do SettingsPage (Minhas configurações) — apenas BRL */}
+                          {customVarCosts.filter(c => c.type === 'brl').length > 0 && (
                             <div>
                               <div className="sticky top-0 px-3 py-1.5 bg-brand-navy-50 border-b border-brand-navy-100">
                                 <span className="text-[10px] font-bold text-brand-navy uppercase tracking-wider">Minhas configurações</span>
                               </div>
-                              {customVarCosts.map(cost => {
+                              {customVarCosts.filter(c => c.type === 'brl').map(cost => {
                                 const colorInfo = getColorById(cost.emoji ?? 'orange');
                                 const alreadyAdded = varCosts.some(c => c.label === cost.label);
                                 return (
@@ -810,13 +842,13 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
                             </div>
                           )}
 
-                          {/* Custos usados anteriormente (histórico) */}
-                          {savedVarSuggestions.length > 0 && (
-                            <div className={customVarCosts.length > 0 ? 'border-t border-surface-100' : ''}>
+                          {/* Custos usados anteriormente (histórico) — apenas BRL */}
+                          {savedVarSuggestions.filter(i => i.type === 'brl').length > 0 && (
+                            <div className={customVarCosts.filter(c => c.type === 'brl').length > 0 ? 'border-t border-surface-100' : ''}>
                               <div className="sticky top-0 px-3 py-1.5 bg-surface-50 border-b border-surface-100">
                                 <span className="text-[10px] font-bold text-surface-400 uppercase tracking-wider">Usados anteriormente</span>
                               </div>
-                              {savedVarSuggestions.map((item, idx) => {
+                              {savedVarSuggestions.filter(i => i.type === 'brl').map((item, idx) => {
                                 const colorInfo = getColorById(item.emoji);
                                 const alreadyAdded = varCosts.some(c => c.label === item.label);
                                 return (
@@ -840,7 +872,7 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
                             </div>
                           )}
 
-                          {customVarCosts.length === 0 && savedVarSuggestions.length === 0 && (
+                          {customVarCosts.filter(c => c.type === 'brl').length === 0 && savedVarSuggestions.filter(i => i.type === 'brl').length === 0 && (
                             <div className="px-4 py-6 text-center text-surface-400 text-sm">
                               <p>Nenhum custo salvo ainda.</p>
                               <p className="text-xs mt-1">Adicione custos nas Configurações ou use-os aqui para salvar.</p>
@@ -863,13 +895,12 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
 
                 {showVarForm && (
                   <div className="rounded-xl bg-surface-50 border border-surface-300 p-4 space-y-3 animate-slide-up">
-                    <div className="flex items-center gap-2"><div className={cn('w-3 h-3 rounded-full', getColorById(newVarColor).bg)} /><span className="text-sm font-semibold text-brand-navy">Novo custo</span></div>
-                    <div><label className="input-label">Nome</label><input className="input" placeholder="Ex: Taxa de serviço" value={newVarLbl} onChange={e => setNewVarLbl(e.target.value)} /></div>
+                    <div className="flex items-center gap-2"><div className={cn('w-3 h-3 rounded-full', getColorById(newVarColor).bg)} /><span className="text-sm font-semibold text-brand-navy">Novo custo por pessoa</span></div>
+                    <div><label className="input-label">Nome</label><input className="input" placeholder="Ex: Ingresso parque" value={newVarLbl} onChange={e => setNewVarLbl(e.target.value)} /></div>
                     <div className="flex items-center gap-2"><label className="input-label">Cor</label><div className="flex gap-1.5 p-2 bg-white rounded-lg">{VAR_COLOR_OPTIONS.slice(0, 8).map(color => <button key={color.id} type="button" onClick={() => setNewVarColor(color.id)} className={cn('w-5 h-5 rounded-full transition-all', color.bg, newVarColor === color.id && 'ring-2 ring-offset-1 ring-brand-navy')} />)}</div></div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div><label className="input-label">Tipo</label><select className="input" value={newVarType} onChange={e => setNewVarType(e.target.value as 'percentage' | 'brl')}><option value="brl">Valor (R$)</option><option value="percentage">Percentual (%)</option></select></div>
-                      <div><label className="input-label">Valor</label><input className="input text-right" type="number" placeholder={newVarType === 'percentage' ? '%' : 'R$'} value={newVarVal} onChange={e => setNewVarVal(e.target.value)} /></div>
-                      {newVarType === 'brl' && <div><label className="input-label">Por pax?</label><select className="input" value={newVarPerPax ? 'true' : 'false'} onChange={e => setNewVarPerPax(e.target.value === 'true')}><option value="true">Sim</option><option value="false">Não</option></select></div>}
+                    <div>
+                      <label className="input-label">Valor por pessoa (R$)</label>
+                      <input className="input text-right" type="number" placeholder="0,00" value={newVarVal} onChange={e => setNewVarVal(e.target.value)} />
                     </div>
                     <div className="flex gap-2">
                       <button type="button" onClick={addNewVarCost} className="flex-1 py-2 rounded-xl bg-brand-orange text-white text-sm font-bold hover:bg-brand-orange-500 transition-colors">Adicionar</button>
@@ -896,12 +927,12 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
                     return (
                       <div key={v.id} className="flex items-center gap-3 px-3 py-3 rounded-xl bg-surface-100 border border-surface-200">
                         <div className={cn('w-5 h-5 rounded-full flex-shrink-0', colorInfo.bg)} />
-                        <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-surface-800 truncate">{v.label}</p><p className="text-xs text-surface-400">{v.type === 'percentage' ? 'Percentual' : 'Valor por pessoa'}</p></div>
-                        {v.type === 'brl' ? (
-                          <div className="flex items-center gap-1"><span className="text-xs text-surface-500">R$</span><input type="number" min={0} step={0.5} value={v.brlValue ?? ''} onChange={e => setVarCosts(p => p.map(c => c.id === v.id ? { ...c, brlValue: parseFloat(e.target.value) || 0 } : c))} className="input w-20 text-right font-extrabold text-brand-navy py-1.5" placeholder="0" /><span className="text-xs text-surface-500 whitespace-nowrap">{v.perPax ? '/pax' : 'rateado'}</span></div>
-                        ) : (
-                          <div className="flex items-center gap-1"><input type="number" min={0} max={100} step={0.5} value={v.percentage || ''} onChange={e => setVarCosts(p => p.map(c => c.id === v.id ? { ...c, percentage: parseFloat(e.target.value) || 0 } : c))} className="input w-20 text-right font-bold text-brand-navy text-sm py-2" placeholder="0" /><span className="text-sm font-bold text-surface-500">%</span></div>
-                        )}
+                        <p className="text-sm font-semibold text-surface-800 flex-1 min-w-0 truncate">{v.label}</p>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-surface-500">R$</span>
+                          <input type="number" min={0} step={0.5} value={v.brlValue ?? ''} onChange={e => setVarCosts(p => p.map(c => c.id === v.id ? { ...c, brlValue: parseFloat(e.target.value) || 0 } : c))} className="input w-20 text-right font-extrabold text-brand-navy py-1.5" placeholder="0" />
+                          <span className="text-xs text-surface-500">/pax</span>
+                        </div>
                         <RemoveBtn onClick={() => setVarCosts(p => p.filter(c => c.id !== v.id))} />
                       </div>
                     );
@@ -915,6 +946,148 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
         )}
 
         {step === 3 && (
+          <div className="space-y-4">
+            {/* ── PARTE SUPERIOR: Adicionar encargos ── */}
+            {/* Dropdown: Sugestões rápidas */}
+            <div ref={chargePresetRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setChargePresetOpen(o => !o)}
+                className={cn('w-full flex items-center justify-between px-4 py-2.5 rounded-xl border text-left transition-colors duration-150', chargePresetOpen ? 'border-brand-navy bg-white' : 'border-surface-300 bg-white hover:border-surface-400')}
+              >
+                <span className="flex items-center gap-2">
+                  <Sparkles size={14} className="text-brand-orange" />
+                  <span className="text-sm font-semibold text-surface-800">Sugestões rápidas</span>
+                </span>
+                <ChevronDown size={16} className={cn('text-surface-400 transition-transform duration-200', chargePresetOpen && 'rotate-180')} />
+              </button>
+
+              {chargePresetOpen && (
+                <div className="absolute z-30 left-0 right-0 mt-1 rounded-xl border border-surface-200 bg-white shadow-lg overflow-hidden animate-slide-up">
+                  <div className="max-h-64 overflow-y-auto">
+                    <div className="sticky top-0 px-3 py-1.5 bg-surface-50 border-b border-surface-100">
+                      <span className="text-[10px] font-bold text-surface-400 uppercase tracking-wider">Encargos sugeridos</span>
+                    </div>
+                    {PRESET_CHARGE_COSTS.map(preset => {
+                      const colorInfo = getColorById(preset.emoji);
+                      const alreadyAdded = chargeCosts.some(c => c.label === preset.label);
+                      return (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          disabled={alreadyAdded}
+                          onClick={() => addChargePreset(preset)}
+                          className={cn('w-full text-left px-4 py-2.5 text-sm transition-colors', alreadyAdded ? 'text-surface-300 cursor-default bg-surface-50' : 'text-surface-700 hover:bg-brand-orange-50 font-medium cursor-pointer')}
+                        >
+                          <span className="flex items-center justify-between">
+                            <span className="flex items-center gap-2">
+                              <div className={cn('w-3 h-3 rounded-full', colorInfo.bg)} />
+                              <span>{preset.label}</span>
+                            </span>
+                            {alreadyAdded ? <Check size={14} className="text-emerald-400" /> : null}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Botão + formulário personalizado */}
+            <button
+              type="button"
+              onClick={() => { setShowChargeForm(o => !o); setNewChargeLbl(''); setNewChargeVal(''); setNewChargeColor('orange'); }}
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-surface-300 bg-white text-surface-700 font-semibold text-sm hover:border-brand-navy hover:text-brand-navy transition-colors"
+            >
+              <Plus size={14} /> Adicionar encargo personalizado
+            </button>
+
+            {showChargeForm && (
+              <div className="rounded-xl bg-surface-50 border border-surface-300 p-4 space-y-3 animate-slide-up">
+                <div className="flex items-center gap-2">
+                  <div className={cn('w-3 h-3 rounded-full', getColorById(newChargeColor).bg)} />
+                  <span className="text-sm font-semibold text-brand-navy">Novo encargo</span>
+                </div>
+                <div><label className="input-label">Nome</label><input className="input" placeholder="Ex: Taxa de cartão online" value={newChargeLbl} onChange={e => setNewChargeLbl(e.target.value)} /></div>
+                <div className="flex items-center gap-2"><label className="input-label">Cor</label><div className="flex gap-1.5 p-2 bg-white rounded-lg">{VAR_COLOR_OPTIONS.slice(0, 8).map(color => <button key={color.id} type="button" onClick={() => setNewChargeColor(color.id)} className={cn('w-5 h-5 rounded-full transition-all', color.bg, newChargeColor === color.id && 'ring-2 ring-offset-1 ring-brand-navy')} />)}</div></div>
+                <div><label className="input-label">Percentual (%)</label><input className="input text-right" type="number" min="0" max="100" step="0.5" placeholder="0" value={newChargeVal} onChange={e => setNewChargeVal(e.target.value)} /></div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={addNewChargeCost} className="flex-1 py-2 rounded-xl bg-brand-orange text-white text-sm font-bold hover:bg-brand-orange-500 transition-colors">Adicionar</button>
+                  <button type="button" onClick={() => setShowChargeForm(false)} className="px-4 py-2 rounded-xl bg-surface-200 text-surface-600 text-sm font-bold hover:bg-surface-300 transition-colors">Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            {/* ── PARTE INFERIOR: Encargos adicionados ── */}
+            <div className="border-t border-surface-200 pt-4 mt-2">
+              <Divider label={`Encargos${chargeCosts.length > 0 ? ` (${chargeCosts.length})` : ''}`} />
+
+              {chargeCosts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-surface-400 gap-2">
+                  <Inbox size={24} className="opacity-60" />
+                  <p className="text-sm">Nenhum encargo adicionado.</p>
+                  <p className="text-xs">Use os botões acima para adicionar.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2 mb-4">
+                    {chargeCosts.map(charge => {
+                      const colorInfo = getColorById(charge.emoji ?? 'orange');
+                      return (
+                        <div key={charge.id} className="flex items-center gap-3 px-3 py-3 rounded-xl bg-surface-100 border border-surface-200">
+                          <div className={cn('w-4 h-4 rounded-full flex-shrink-0', colorInfo.bg)} />
+                          <span className="text-sm font-medium text-surface-700 flex-1 min-w-0 truncate">{charge.label}</span>
+                          <div className="flex items-center gap-2 w-44">
+                            <input
+                              type="range"
+                              min="0"
+                              max="30"
+                              step="0.5"
+                              value={charge.percentage}
+                              onChange={e => setChargeCosts(p => p.map(c => c.id === charge.id ? { ...c, percentage: parseFloat(e.target.value) } : c))}
+                              className="flex-1 h-1.5 rounded-full appearance-none cursor-pointer bg-surface-300 accent-brand-orange"
+                            />
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.5"
+                              value={charge.percentage}
+                              onChange={e => setChargeCosts(p => p.map(c => c.id === charge.id ? { ...c, percentage: parseFloat(e.target.value) || 0 } : c))}
+                              className="w-14 text-right text-sm font-bold text-brand-navy bg-white border border-surface-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+                            />
+                            <span className="text-xs text-surface-400">%</span>
+                          </div>
+                          <RemoveBtn onClick={() => setChargeCosts(p => p.filter(c => c.id !== charge.id))} />
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Barra visual */}
+                  <div className="h-2 rounded-full bg-surface-200 overflow-hidden">
+                    <div
+                      className="h-full rounded-full gradient-accent transition-all duration-500"
+                      style={{ width: `${Math.min(totalChargePct, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-xs text-surface-400">0%</span>
+                    <span className="text-xs text-surface-400">
+                      {totalChargePct > 50 && '⚠️ '}
+                      {totalChargePct.toFixed(1)}% do preço vai para taxas e encargos
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <CalculatorGuide step={step} />
+          </div>
+        )}
+
+        {step === 4 && (
           <div className="space-y-5">
             <div className="text-center">
               <label className="input-label block text-center">Preço por passageiro (R$)</label>
@@ -927,25 +1100,46 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
               />
               <p className="input-hint text-center">Quanto o cliente vai pagar por pessoa</p>
             </div>
-            {varCosts.length > 0 && (
-              <div className="p-4 rounded-xl bg-surface-50 border border-surface-200">
-                <p className="text-xs font-bold text-surface-500 uppercase tracking-wide mb-2">Custos extras aplicados</p>
-                <div className="flex flex-wrap gap-2">
-                  {varCosts.map(v => {
-                    const colorInfo = getColorById(v.emoji ?? 'orange');
-                    return (
-                      <div key={v.id} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white border border-surface-200">
-                        <div className={cn('w-3 h-3 rounded-full', colorInfo.bg)} />
-                        <span className="text-xs font-medium text-surface-600">{v.label}</span>
-                        <span className="text-xs text-surface-400">
-                          {v.type === 'percentage' ? `${v.percentage || 0}%` : `R$ ${v.brlValue ?? 0}${v.perPax ? '/pax' : ' rateado'}`}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                {totalVarPct > 0 && (
-                  <p className="text-xs text-surface-500 mt-2">Total de {formatPercent(totalVarPct)} em taxas percentuais sobre o preço.</p>
+            {allVarCosts.length > 0 && (
+              <div className="p-4 rounded-xl bg-surface-50 border border-surface-200 space-y-3">
+                {varCosts.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-surface-500 uppercase tracking-wide mb-2">Inclusões por pessoa</p>
+                    <div className="flex flex-wrap gap-2">
+                      {varCosts.map(v => {
+                        const colorInfo = getColorById(v.emoji ?? 'orange');
+                        return (
+                          <div key={v.id} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white border border-surface-200">
+                            <div className={cn('w-3 h-3 rounded-full', colorInfo.bg)} />
+                            <span className="text-xs font-medium text-surface-600">{v.label}</span>
+                            <span className="text-xs text-surface-400">
+                              {v.type === 'percentage' ? `${v.percentage || 0}%` : `R$ ${v.brlValue ?? 0}${v.perPax ? '/pax' : ' rateado'}`}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {chargeCosts.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-surface-500 uppercase tracking-wide mb-2">Taxas e encargos</p>
+                    <div className="flex flex-wrap gap-2">
+                      {chargeCosts.map(v => {
+                        const colorInfo = getColorById(v.emoji ?? 'orange');
+                        return (
+                          <div key={v.id} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white border border-surface-200">
+                            <div className={cn('w-3 h-3 rounded-full', colorInfo.bg)} />
+                            <span className="text-xs font-medium text-surface-600">{v.label}</span>
+                            <span className="text-xs text-surface-400">{v.percentage || 0}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {totalChargePct > 0 && (
+                  <p className="text-xs text-surface-500">Total de {formatPercent(totalChargePct)} em taxas sobre o preço.</p>
                 )}
               </div>
             )}
@@ -953,7 +1147,7 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
           </div>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <div>
             <SimulationResults
               simulation={simulation}
@@ -962,7 +1156,7 @@ export function CalculatorPage({ initialRoute, routes, saveRoute, saving, onNavi
               breakEvenPax={breakEvenForDisplay}
               simulationPax={simulationPax}
               totalFixed={totalFixed}
-              variables={varCosts}
+              variables={allVarCosts}
               onPriceChange={setPrice}
             />
             <div className="mt-6">
